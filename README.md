@@ -1,45 +1,167 @@
-# Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
-<img width="1213" alt="Screenshot 2025-02-24 at 9 58 54 PM" src="https://github.com/user-attachments/assets/09a20f0b-9f45-4382-b6c2-e70bba6c17db" />
+# SAE Probes
 
-This repository contains code to replicate experiments from our paper [*Are Sparse Autoencoders Useful? A Case Study in Sparse Probing*](https://arxiv.org/pdf/2502.16681). The workflow of our code involves three primary stages. Each part should be mostly executable independently from artifacts we make available:
+A Python package for evaluating sparse autoencoders through probing tasks.
 
-1. **Generating Model and SAE Activations:**
-   - Model activations for probing datasets are generated in `generate_model_activations.py`
-   - SAE activations are generated in `generate_sae_activations.py`
-   - OOD regime activations are specifically generated in `plot_ood.ipynb`.
-   - Mutli-token activations are specifically generated in `generate_model_and_sae_multi_token_acts.py`. Caution: this will take up a lot of memory (~1TB).
+## Installation
 
-2. **Training Probes:**
-   - Baseline probes are trained using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
-   - SAE probes are trained using `train_sae_probes.py`. Sklearn regression is most efficient when run in a single thread, and then many of those threads can be run in parallel. We include an example of how to do this in `train_sae_probes.sh`.
-   - Multi token SAE probes and baseline probes are trained using `run_multi_token_acts.py`.
-   - Combining all results into csvs after they are done is done with `combine_results.py`.
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/sae-probes.git
+cd sae-probes
 
-3. **Visualizing Results:**
-   - Standard condition plots: `plot_normal.ipynb`
-   - Data scarcity, class imbalance, and corrupted data regimes: `plot_combined.ipynb`
-   - OOD plots: `plot_ood.ipynb`
-   - Llama-3.1-8B results replication: `plot_llama.ipynb`
-   - GLUE CoLA and AIMade investigations (Sections 4.3.1 and 4.3.2): `dataset_investigations/`
-   - AI vs. human final token plots: `ai_vs_humanmade_plot.py`
-   - SAE architectural improvements (Section 6): `sae_improvement.ipynb`
-   - Multi token: `plot_multi_token.py`
-   - K vs. AUC plot broken down by dataset (in appendix): `k_vs_auc_plot.py` 
-   
-Note that these should all be runnable as is from the results data in the repo.
-
-### Datasets
-- **Raw Text Datasets:** Accessible via [Dropbox link](https://www.dropbox.com/scl/fo/lvajx9100jsy3h9cvis7q/AIocXXICIwHsz-HsXSekC3Y?rlkey=tq7td61h1fufm01cbdu2oqsb5&st=aorlnph5&dl=0).
-- **Model Activations:** Also stored on Dropbox (Note: Files are large).
-
-## Requirements
-We recommend you create a new python venv named probing and install required packages with pip:
+# Install with Poetry
+poetry install
 ```
-python -m venv probing
-source probing/bin/activate
-pip install transformer_lens sae_lens transformers datasets torch xgboost sae_bench scikit-learn natsort
+
+## Usage
+
+### Basic Usage
+
+```python
+from pathlib import Path
+from sae_lens import SAE
+from sae_probes import run_sae_probe
+
+# Load your SAE
+sae, _, _ = SAE.from_pretrained(
+    release="gemma-scope-9b-pt-res",
+    sae_id="layer_20/width_16k/l0_408",
+    device="cuda:0"
+)
+
+# Run probing on all datasets
+results = run_sae_probe(
+    sae=sae,
+    model_name="gemma-2-9b",
+    layer=20,
+    dataset_path=Path("data/cleaned_data"),
+    cache_path=Path("cache/activations"),
+    settings=["normal"],
+    k_values=[16, 32, 64, 128],
+    reg_type="l1",
+)
+
+# Access results
+for dataset, metrics in results["summaries"]["normal"].iterrows():
+    dataset_name, k = dataset
+    print(f"Dataset: {dataset_name}, k={k}")
+    print(f"  AUC: {metrics['auc_mean']:.4f} ± {metrics['auc_std']:.4f}")
 ```
-Let us know if anything does not work with this environment!
 
+### Advanced Usage
 
-For any questions or clarifications, please open an issue or reach out to us!
+```python
+import torch
+from pathlib import Path
+from sae_lens import SAE
+from sae_probes.activations import ActivationConfig, generate_model_activations, generate_sae_activations
+from sae_probes.probing import ProbeConfig, train_probe
+from sae_probes.datasets import load_dataset
+
+# Configuration
+model_name = "gemma-2-9b"
+layer = 20
+dataset_tag = "100_news_fake"
+dataset_path = Path("data/cleaned_data")
+cache_path = Path("cache")
+
+# Create activation config
+activation_config = ActivationConfig(
+    model_name=model_name,
+    layer=layer,
+    device="cuda:0",
+)
+
+# Load SAE
+sae, _, _ = SAE.from_pretrained(
+    release="gemma-scope-9b-pt-res",
+    sae_id="layer_20/width_16k/l0_408",
+    device="cuda:0",
+)
+
+# Generate or load model activations
+model_activations = generate_model_activations(
+    dataset_tag=dataset_tag,
+    config=activation_config,
+    dataset_path=dataset_path,
+    cache_path=cache_path,
+)
+
+# Generate or load SAE activations
+sae_activations = generate_sae_activations(
+    dataset_tag=dataset_tag,
+    sae=sae,
+    model_activations=model_activations,
+    config=activation_config,
+    cache_path=cache_path,
+)
+
+# Load dataset and create splits
+df, train_indices, test_indices = load_dataset(
+    dataset_tag=dataset_tag,
+    dataset_path=dataset_path,
+)
+
+# Prepare data
+X_train = sae_activations[train_indices]
+X_test = sae_activations[test_indices]
+y_train = df["target"].values[train_indices]
+y_test = df["target"].values[test_indices]
+
+# Create probe config
+probe_config = ProbeConfig(
+    reg_type="l1",
+    k_values=[16, 128, 512],
+    binarize=False,
+)
+
+# Train and evaluate probes
+results = train_probe(
+    X_train=X_train,
+    y_train=y_train,
+    X_test=X_test,
+    y_test=y_test,
+    config=probe_config,
+)
+
+# Print results
+for result in results:
+    print(f"k={result.k}, AUC={result.auc:.4f}")
+```
+
+## Development
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/sae-probes.git
+cd sae-probes
+
+# Install development dependencies
+poetry install --with dev
+```
+
+### Testing
+
+```bash
+# Run tests
+poetry run pytest
+
+# Run tests with coverage
+poetry run pytest --cov=sae_probes
+```
+
+### Linting
+
+```bash
+# Run ruff
+poetry run ruff check .
+
+# Run pyright
+poetry run pyright
+```
+
+## License
+
+MIT

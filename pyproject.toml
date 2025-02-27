@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "sae_probes"
+version = "0.1.0"
+description = "A toolkit for evaluating sparse autoencoders through probing tasks"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{ include = "sae_probes" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+transformer-lens = "^2.15.0"
+sae-lens = "^5.5.2"
+transformers = "^4.49.0"
+scikit-learn = "^1.6.1"
+pandas = "^2.2.3"
+tqdm = "^4.67.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+ruff = "^0.9.8"
+pyright = "^1.1.395"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+# Common settings
+target-version = "py310"
+exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+ignore = ["E203", "E501", "E731"]
+extend-select = ["UP", "TID", "I", "F", "E", "ARG"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.Union".msg = "Use `|` instead"
+"typing.Optional".msg = "Use `| None` instead"
+"typing.Dict".msg = "Use `dict` instead"
+"typing.Tuple".msg = "Use `tuple` instead"
+"typing.List".msg = "Use `list` instead"
+
+[tool.pyright]
+typeCheckingMode = "standard"
