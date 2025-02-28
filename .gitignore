@@ -1,5 +1,7 @@
 probing
 data/*
 !data/probing_datasets_MASTER.csv
+!data/cleaned_data/
+!data/OOD data/
 !data/consolidated_probing_gemma-2-9b/
 __pycache__

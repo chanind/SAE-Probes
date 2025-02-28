@@ -1,6 +1,7 @@
 """Main API for running SAE probing tasks."""
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -13,7 +14,7 @@ from sae_probes.activations import (
     generate_model_activations,
     generate_sae_activations,
 )
-from sae_probes.datasets import get_binary_datasets, load_dataset
+from sae_probes.datasets import DEFAULT_DATASET_PATH, get_binary_datasets, load_dataset
 from sae_probes.evaluation import (
     EvaluationConfig,
     summarize_results,
@@ -31,7 +32,7 @@ class RunConfig:
     """Configuration for running SAE probing."""
 
     model_name: str
-    layer: int
+    hook_name: str
     settings: list[str] | None = None
     k_values: list[int] | None = None
     reg_type: Literal["l1", "l2", "elasticnet"] = "l1"
@@ -56,9 +57,10 @@ class RunConfig:
 def run_sae_probe(
     sae: SAE,
     model_name: str,
-    layer: int,
-    dataset_path: Path,
+    hook_name: str,
     cache_path: Path,
+    results_path: Path,
+    dataset_path: Path = DEFAULT_DATASET_PATH,
     settings: list[str] | None = None,
     k_values: list[int] | None = None,
     reg_type: Literal["l1", "l2", "elasticnet"] = "l1",
@@ -88,7 +90,7 @@ def run_sae_probe(
     # Create configuration
     config = RunConfig(
         model_name=model_name,
-        layer=layer,
+        hook_name=hook_name,
         settings=settings,
         k_values=k_values,
         reg_type=reg_type,
@@ -103,7 +105,7 @@ def run_sae_probe(
     # Create activation config
     activation_config = ActivationConfig(
         model_name=config.model_name,
-        layer=config.layer,
+        hook_name=config.hook_name,
         max_seq_len=config.max_seq_len,
         device=str(config.torch_device),
     )
@@ -117,7 +119,6 @@ def run_sae_probe(
     )
 
     # Create save paths
-    results_path = cache_path / "results"
     ensure_path(results_path)
 
     # Get SAE ID or use custom identifier
@@ -151,8 +152,6 @@ def run_sae_probe(
             sae=sae,
             model_activations=model_activations,
             config=activation_config,
-            cache_path=cache_path,
-            force_regenerate=force_regenerate,
         )
 
         # Load dataset
@@ -188,29 +187,26 @@ def run_sae_probe(
             config=probe_config,
         )
 
-        # Save results
-        save_path = (
-            results_path
-            / f"sae_probes_{config.model_name}"
-            / "normal_setting"
-            / f"{dataset_tag}_{config.layer}_{sae_id}_{config.reg_type}.pkl"
-        )
         save_probe_results(
             results=results,
             dataset=dataset_tag,
             config=probe_config,
             sae_id=sae_id,
-            save_path=save_path,
+            save_path=results_path
+            / f"{dataset_tag}_{sae_id}_{probe_config.reg_type}.json",
         )
 
         # Add to all results
-        all_results["normal"].extend([r.as_dict() for r in results])
+        all_results["normal"].extend([asdict(r) for r in results])
 
     # Create evaluation config
     eval_config = EvaluationConfig(
         model_name=config.model_name,
         settings=config.settings or [],
     )
+
+    with open(results_path / "all_results.json", "w") as f:
+        json.dump(all_results, f, indent=4, ensure_ascii=False)
 
     # Summarize results
     summaries = summarize_results(

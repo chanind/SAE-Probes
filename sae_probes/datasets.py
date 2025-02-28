@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+DEFAULT_DATASET_PATH = Path(__file__).parent.parent / "data"
+
 
 @dataclass
 class DatasetInfo:
@@ -17,7 +19,7 @@ class DatasetInfo:
     description: str = ""
 
 
-def get_binary_datasets(dataset_path: Path) -> list[DatasetInfo]:
+def get_binary_datasets(dataset_path: Path = DEFAULT_DATASET_PATH) -> list[DatasetInfo]:
     """
     Get information about available binary classification datasets.
 

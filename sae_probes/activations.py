@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import torch
 from sae_lens import SAE
@@ -16,7 +17,7 @@ class ActivationConfig:
     """Configuration for activation generation."""
 
     model_name: str
-    layer: int
+    hook_name: str
     max_seq_len: int = 1024
     device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -82,7 +83,7 @@ def generate_model_activations(
     activation_dir.mkdir(parents=True, exist_ok=True)
 
     # Define hook names and activation file path
-    hook_name = f"blocks.{config.layer}.hook_resid_post"
+    hook_name = config.hook_name
     activation_file = activation_dir / f"{dataset_tag}_{hook_name}.pt"
 
     # Check if activations already exist and we're not forcing regeneration
@@ -94,7 +95,7 @@ def generate_model_activations(
     df, _, _ = load_dataset(dataset_tag, dataset_path)
 
     # Load model
-    model = load_model(config.model_name, config.device)
+    model = load_model(config.model_name, device=config.device)
 
     # Important to ensure correct token is at the correct position
     tokenizer = model.tokenizer
@@ -150,8 +151,6 @@ def generate_sae_activations(
     sae: SAE,
     model_activations: torch.Tensor,
     config: ActivationConfig,
-    cache_path: Path,
-    force_regenerate: bool = False,
 ) -> torch.Tensor:
     """
     Generate SAE activations for a dataset.
@@ -168,19 +167,9 @@ def generate_sae_activations(
         Tensor of SAE activations
     """
     # Create cache directory if it doesn't exist
-    sae_dir = cache_path / f"sae_activations_{config.model_name}"
-    sae_dir.mkdir(parents=True, exist_ok=True)
 
     # Get SAE identifier
     sae_id = getattr(sae, "sae_id", "custom_sae")
-
-    # Define activation file path
-    activation_file = sae_dir / f"{dataset_tag}_{config.layer}_{sae_id}.pt"
-
-    # Check if activations already exist and we're not forcing regeneration
-    if activation_file.exists() and not force_regenerate:
-        print(f"Loading cached SAE activations from {activation_file}")
-        return torch.load(activation_file)
 
     # Generate SAE activations
     print(f"Generating SAE activations for {dataset_tag} with SAE {sae_id}")
@@ -193,31 +182,24 @@ def generate_sae_activations(
 
     # Concatenate activations
     activations = torch.cat(sae_activations)
-
-    # Save activations
-    torch.save(activations, activation_file)
-
     return activations
 
 
-def load_model(model_name: str, device: str = "cuda:0") -> HookedTransformer:
+def load_model(
+    model_name: str,
+    from_pretrained_kwargs: dict[str, Any] | None = None,
+    device: str = "cuda",
+) -> HookedTransformer:
     """
     Load a model using HookedTransformer.
 
     Args:
         model_name: Name of the model
+        from_pretrained_kwargs: Keyword arguments for from_pretrained
         device: Device to load model on
-
     Returns:
         HookedTransformer model
     """
-    if model_name == "gemma-2-9b":
-        return HookedTransformer.from_pretrained("google/gemma-2-9b", device=device)
-    elif model_name == "llama-3.1-8b":
-        return HookedTransformer.from_pretrained(
-            "meta-llama/Llama-3.1-8B", device=device
-        )
-    elif model_name == "gemma-2-2b":
-        return HookedTransformer.from_pretrained("google/gemma-2-2b", device=device)
-    else:
-        raise ValueError(f"Model {model_name} not supported")
+    return HookedTransformer.from_pretrained_no_processing(
+        model_name, device=device, **(from_pretrained_kwargs or {})
+    )

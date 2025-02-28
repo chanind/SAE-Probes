@@ -1,7 +1,8 @@
 """SAE probing model training and evaluation."""
 
+import json
 import pickle
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -44,17 +45,6 @@ class ProbeResults:
     model: Any
     feature_indices: list[int]
     k: int
-
-    def as_dict(self) -> dict:
-        """Convert results to dictionary."""
-        return {
-            "auc": self.auc,
-            "accuracy": self.accuracy,
-            "precision": self.precision,
-            "recall": self.recall,
-            "f1": self.f1,
-            "k": self.k,
-        }
 
 
 def select_features(X_train: torch.Tensor, y_train: np.ndarray, k: int) -> list[int]:
@@ -208,7 +198,7 @@ def save_probe_results(
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Convert results to dictionaries
-    results_dicts = [r.as_dict() for r in results]
+    results_dicts = [asdict(r) for r in results]
 
     # Add metadata
     for r in results_dicts:
@@ -218,8 +208,8 @@ def save_probe_results(
         r["sae_id"] = sae_id
 
     # Save results
-    with open(save_path, "wb") as f:
-        pickle.dump(results_dicts, f)
+    with open(save_path, "w") as f:
+        json.dump(results_dicts, f, indent=4, ensure_ascii=False)
 
 
 def load_probe_results(load_path: Path) -> list[dict]:
