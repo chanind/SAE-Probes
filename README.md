@@ -159,9 +159,5 @@ poetry run pytest --cov=sae_probes
 poetry run ruff check .
 
 # Run pyright
-poetry run pyright
+poetry run pyright sae_probes
 ```
-
-## License
-
-MIT

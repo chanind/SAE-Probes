@@ -3,7 +3,7 @@
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -22,8 +22,8 @@ from tqdm import tqdm
 class ProbeConfig:
     """Configuration for probe training."""
 
-    reg_type: str = "l1"  # l1 or l2 regularization
-    k_values: list[int] = None  # Number of features to use
+    reg_type: Literal["l1", "l2", "elasticnet"] = "l1"  # l1 or l2 regularization
+    k_values: list[int] | None = None
     binarize: bool = False  # Whether to binarize SAE features
     seed: int = 42  # Random seed
 
@@ -78,9 +78,9 @@ def select_features(X_train: torch.Tensor, y_train: np.ndarray, k: int) -> list[
 
 
 def train_probe(
-    X_train: torch.Tensor,
+    X_train: torch.Tensor | np.ndarray,
     y_train: np.ndarray,
-    X_test: torch.Tensor,
+    X_test: torch.Tensor | np.ndarray,
     y_test: np.ndarray,
     config: ProbeConfig,
 ) -> list[ProbeResults]:
@@ -115,7 +115,7 @@ def train_probe(
 
     # Get feature indices sorted by class difference
     feature_indices = select_features(
-        torch.tensor(X_train), y_train, max(config.k_values)
+        torch.tensor(X_train), y_train, max(config.k_values or [])
     )
 
     # Train models for different k values
@@ -157,24 +157,27 @@ def train_probe(
                 best_auc = auc
                 best_model = model
 
+        if best_model is None:
+            raise ValueError("No model was trained")
+
         # Evaluate best model
         y_pred_proba = best_model.predict_proba(X_test_k)[:, 1]
         y_pred = best_model.predict(X_test_k)
 
         auc = roc_auc_score(y_test, y_pred_proba)
         accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred, zero_division=0)
-        recall = recall_score(y_test, y_pred, zero_division=0)
-        f1 = f1_score(y_test, y_pred, zero_division=0)
+        precision = precision_score(y_test, y_pred, zero_division=0)  # type: ignore
+        recall = recall_score(y_test, y_pred, zero_division=0)  # type: ignore
+        f1 = f1_score(y_test, y_pred, zero_division=0)  # type: ignore
 
         # Store results
         results.append(
             ProbeResults(
-                auc=auc,
-                accuracy=accuracy,
-                precision=precision,
-                recall=recall,
-                f1=f1,
+                auc=float(auc),
+                accuracy=float(accuracy),
+                precision=float(precision),
+                recall=float(recall),
+                f1=float(f1),
                 model=best_model,
                 feature_indices=k_indices,
                 k=k,

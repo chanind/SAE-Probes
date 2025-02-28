@@ -2,9 +2,8 @@
 name = "sae_probes"
 version = "0.1.0"
 description = "A toolkit for evaluating sparse autoencoders through probing tasks"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Josh Engels"]
 readme = "README.md"
-license = "MIT"
 packages = [{ include = "sae_probes" }]
 
 [tool.poetry.dependencies]
@@ -20,7 +19,7 @@ tqdm = "^4.67.1"
 pytest = "^8.3.4"
 pytest-cov = "^6.0.0"
 ruff = "^0.9.8"
-pyright = "^1.1.395"
+pyright = "1.1.393"
 
 [build-system]
 requires = ["poetry-core"]

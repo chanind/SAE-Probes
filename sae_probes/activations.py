@@ -98,6 +98,7 @@ def generate_model_activations(
 
     # Important to ensure correct token is at the correct position
     tokenizer = model.tokenizer
+    assert tokenizer is not None
     tokenizer.truncation_side = "left"
     tokenizer.padding_side = "right"
 
@@ -107,7 +108,7 @@ def generate_model_activations(
     # Get token lengths
     text_lengths = []
     for t in text:
-        text_lengths.append(len(tokenizer(t)["input_ids"]))
+        text_lengths.append(len(tokenizer(t)["input_ids"]))  # type: ignore
 
     # Generate activations
     print(f"Generating activations for {dataset_tag}")

@@ -14,10 +14,13 @@ class EvaluationConfig:
     """Configuration for evaluation."""
 
     model_name: str
-    settings: list[str]  # normal, scarcity, imbalance, noise
-    metrics: list[str] = None  # Metrics to include in summary
+    settings: list[str] = None  # normal, scarcity, imbalance, noise # type: ignore
+    metrics: list[str] = None  # Metrics to include in summary # type: ignore
 
     def __post_init__(self):
+        if self.settings is None:
+            self.settings = ["normal"]
+
         if self.metrics is None:
             self.metrics = ["auc", "accuracy", "precision", "recall", "f1"]
 
@@ -69,7 +72,7 @@ def collect_results(
 def summarize_results(
     results: dict[str, list],
     config: EvaluationConfig,
-    k_focus: list[int] = None,
+    k_focus: list[int] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Summarize results by setting.
@@ -104,7 +107,8 @@ def summarize_results(
 
         # Add std values
         for metric in config.metrics:
-            stds = grouped[metric].std().reset_index()[metric]
+            # type: ignore[attr-defined]
+            stds = grouped[metric].std().reset_index()[metric]  # type: ignore
             summary[f"{metric}_std"] = stds.values
 
         summaries[setting] = summary
@@ -220,7 +224,10 @@ def calculate_win_rate(
                 win_matrix[i, j] = 1 if sae_score > baseline_score else 0
 
         # Create DataFrame
-        win_df = pd.DataFrame(win_matrix, index=datasets, columns=k_values)
+        # Using explicit pd.Index to fix type error
+        win_df = pd.DataFrame(
+            win_matrix, index=pd.Index(datasets), columns=pd.Index(k_values)
+        )
 
         # Add overall win rate
         win_df["overall"] = win_df.mean(axis=1)

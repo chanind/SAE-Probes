@@ -25,7 +25,7 @@ def set_seed(seed: int = 42) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def save_config(config: any, path: Path) -> None:
+def save_config(config: object, path: Path) -> None:
     """
     Save configuration to JSON file.
 
@@ -38,7 +38,7 @@ def save_config(config: any, path: Path) -> None:
 
     # Convert dataclass to dict if needed
     if is_dataclass(config):
-        config_dict = asdict(config)
+        config_dict = asdict(config)  # type: ignore
     else:
         config_dict = config
 

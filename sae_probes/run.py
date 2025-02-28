@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
+import torch
 from sae_lens import SAE
 from tqdm import tqdm
 
@@ -30,13 +32,13 @@ class RunConfig:
 
     model_name: str
     layer: int
-    settings: list[str] = None
-    k_values: list[int] = None
-    reg_type: str = "l1"
+    settings: list[str] | None = None
+    k_values: list[int] | None = None
+    reg_type: Literal["l1", "l2", "elasticnet"] = "l1"
     binarize: bool = False
     max_seq_len: int = 1024
     batch_size: int = 128
-    device: str = None
+    device: str | None = None
     seed: int = 42
 
     def __post_init__(self):
@@ -46,7 +48,9 @@ class RunConfig:
         if self.k_values is None:
             self.k_values = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 
-        self.device = get_device(self.device)
+    @property
+    def torch_device(self) -> torch.device:
+        return get_device(self.device)
 
 
 def run_sae_probe(
@@ -55,11 +59,11 @@ def run_sae_probe(
     layer: int,
     dataset_path: Path,
     cache_path: Path,
-    settings: list[str] = None,
-    k_values: list[int] = None,
-    reg_type: str = "l1",
+    settings: list[str] | None = None,
+    k_values: list[int] | None = None,
+    reg_type: Literal["l1", "l2", "elasticnet"] = "l1",
     binarize: bool = False,
-    device: str = None,
+    device: str | None = None,
     force_regenerate: bool = False,
 ) -> dict[str, dict]:
     """
@@ -96,15 +100,12 @@ def run_sae_probe(
     # Set random seed
     set_seed(config.seed)
 
-    # Get device
-    device = get_device(config.device)
-
     # Create activation config
     activation_config = ActivationConfig(
         model_name=config.model_name,
         layer=config.layer,
         max_seq_len=config.max_seq_len,
-        device=str(device),
+        device=str(config.torch_device),
     )
 
     # Create probe config
@@ -130,7 +131,7 @@ def run_sae_probe(
     sae = sae.to(device)
 
     # Process each dataset
-    all_results = {setting: [] for setting in config.settings}
+    all_results = {setting: [] for setting in config.settings or []}
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
@@ -181,9 +182,9 @@ def run_sae_probe(
         # Train and evaluate probes
         results = train_probe(
             X_train=X_train,
-            y_train=y_train,
+            y_train=y_train,  # type: ignore
             X_test=X_test,
-            y_test=y_test,
+            y_test=y_test,  # type: ignore
             config=probe_config,
         )
 
@@ -208,7 +209,7 @@ def run_sae_probe(
     # Create evaluation config
     eval_config = EvaluationConfig(
         model_name=config.model_name,
-        settings=config.settings,
+        settings=config.settings or [],
     )
 
     # Summarize results

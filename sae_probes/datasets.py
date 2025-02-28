@@ -33,7 +33,7 @@ def get_binary_datasets(dataset_path: Path) -> list[DatasetInfo]:
 
     datasets = []
     for _, row in binary_datasets.iterrows():
-        tag = row["Dataset save name"].split("/")[-1].split(".")[0]
+        tag = str(row["Dataset save name"]).split("/")[-1].split(".")[0]
 
         # Try to get dataset size
         try:
@@ -43,7 +43,7 @@ def get_binary_datasets(dataset_path: Path) -> list[DatasetInfo]:
             size = 0
 
         datasets.append(
-            DatasetInfo(tag=tag, size=size, description=row.get("Description", ""))
+            DatasetInfo(tag=tag, size=size, description=str(row.get("Description", "")))
         )
 
     return datasets
@@ -82,16 +82,21 @@ def load_dataset(
         raise ValueError(f"Dataset with tag {dataset_base_tag} not found")
 
     # Get dataset path
-    dataset_file = dataset_row["Dataset save name"].iloc[0]
+    # type: ignore[attr-defined]
+    dataset_file = dataset_row["Dataset save name"].iloc[0]  # type: ignore
     df = pd.read_csv(dataset_path / dataset_file)
 
     # Encode labels
     le = LabelEncoder()
-    y = le.fit_transform(df["target"].values)
+    y = le.fit_transform(df["target"].values)  # type: ignore
 
     # Get train/test indices
     train_indices, test_indices = get_train_test_indices(
-        y, num_train, test_size, pos_ratio, seed
+        y,  # type: ignore
+        num_train,
+        test_size,
+        pos_ratio,
+        seed,
     )
 
     return df, train_indices, test_indices
