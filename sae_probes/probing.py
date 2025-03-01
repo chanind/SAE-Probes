@@ -1,7 +1,6 @@
 """SAE probing model training and evaluation."""
 
 import json
-import pickle
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -215,17 +214,3 @@ def save_probe_results(
     # Save results
     with open(save_path, "w") as f:
         json.dump(results_dicts, f, indent=4, ensure_ascii=False)
-
-
-def load_probe_results(load_path: Path) -> list[dict]:
-    """
-    Load probe results from file.
-
-    Args:
-        load_path: Path to load results from
-
-    Returns:
-        List of result dictionaries
-    """
-    with open(load_path, "rb") as f:
-        return pickle.load(f)

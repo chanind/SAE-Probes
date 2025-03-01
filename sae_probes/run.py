@@ -36,7 +36,6 @@ class RunConfig:
 
     model_name: str
     hook_name: str
-    settings: list[str] | None = None
     k_values: list[int] | None = None
     reg_type: Literal["l1", "l2", "elasticnet"] = "l1"
     binarize: bool = False
@@ -49,9 +48,6 @@ class RunConfig:
     autocast: bool = False
 
     def __post_init__(self):
-        if self.settings is None:
-            self.settings = ["normal"]
-
         if self.k_values is None:
             self.k_values = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 
@@ -121,7 +117,7 @@ def run_sae_probe(
     model = load_model(config.model_name, device=str(config.torch_device))
 
     # Process each dataset
-    all_results = {setting: [] for setting in config.settings or []}
+    all_results = {}
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
@@ -196,10 +192,7 @@ def run_sae_probe(
         all_results["normal"].extend([r.to_dict() for r in results])
 
     # Create evaluation config
-    eval_config = EvaluationConfig(
-        model_name=config.model_name,
-        settings=config.settings or [],
-    )
+    eval_config = EvaluationConfig(model_name=config.model_name)
 
     with open(results_path / "all_results.json", "w") as f:
         json.dump(all_results, f, indent=4, ensure_ascii=False)
