@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
-DEFAULT_DATASET_PATH = Path(__file__).parent.parent / "data"
+DEFAULT_DATASET_PATH = Path(__file__).parent / "data"
 
 
 @dataclass
