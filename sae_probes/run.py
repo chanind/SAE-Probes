@@ -1,12 +1,14 @@
 """Main API for running SAE probing tasks."""
 
 import json
+import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 import torch
 from sae_lens import SAE
+from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
 from sae_probes.activations import (
@@ -123,13 +125,26 @@ def run_sae_probe(
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
-        dataset_df, _, _ = load_dataset(dataset_tag, dataset_path)
+        try:
+            # Load dataset
+            df, train_indices, test_indices = load_dataset(
+                dataset_tag=dataset_tag,
+                dataset_path=dataset_path,
+                num_train=1024,  # Default for normal setting
+                test_size=None,
+                pos_ratio=0.5,
+                seed=config.seed,
+            )
+        except Exception as e:
+            print(f"Error loading dataset {dataset_tag}: {e}")
+            print(f"Stack trace:\n{traceback.format_exc()}")
+            continue
 
         # Generate model activations
         model_activations = generate_model_activations(
             model=model,
             dataset_tag=dataset_tag,
-            dataset_df=dataset_df,
+            dataset_df=df,
             config=activation_config,
             cache_path=cache_path,
             force_regenerate=force_regenerate,
@@ -147,16 +162,6 @@ def run_sae_probe(
             batch_size=config.sae_batch_size,
         )
 
-        # Load dataset
-        df, train_indices, test_indices = load_dataset(
-            dataset_tag=dataset_tag,
-            dataset_path=dataset_path,
-            num_train=1024,  # Default for normal setting
-            test_size=None,
-            pos_ratio=0.5,
-            seed=config.seed,
-        )
-
         # Prepare data for normal setting
         X_train = sae_activations[train_indices]
         X_test = sae_activations[test_indices]
@@ -165,8 +170,6 @@ def run_sae_probe(
 
         # Encode labels if needed
         if not set(y_train).issubset({0, 1}):
-            from sklearn.preprocessing import LabelEncoder
-
             le = LabelEncoder()
             y_train = le.fit_transform(y_train)
             y_test = le.transform(y_test)
