@@ -16,7 +16,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass

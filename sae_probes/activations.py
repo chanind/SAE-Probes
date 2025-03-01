@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 from sae_lens import SAE
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from transformer_lens import HookedTransformer
 
 from sae_probes.datasets import load_dataset
