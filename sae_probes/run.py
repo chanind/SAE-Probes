@@ -42,6 +42,7 @@ class RunConfig:
     device: str | None = None
     seed: int = 42
     sae_batch_size: int = 128
+    autocast: bool = False
 
     def __post_init__(self):
         if self.settings is None:
@@ -57,18 +58,11 @@ class RunConfig:
 
 def run_sae_probe(
     sae: SAE,
-    model_name: str,
-    hook_name: str,
+    config: RunConfig,
     cache_path: Path,
     results_path: Path,
     dataset_path: Path = DEFAULT_DATASET_PATH,
-    settings: list[str] | None = None,
-    k_values: list[int] | None = None,
-    reg_type: Literal["l1", "l2", "elasticnet"] = "l1",
-    binarize: bool = False,
-    device: str | None = None,
     force_regenerate: bool = False,
-    autocast: bool = False,
 ) -> dict[str, dict]:
     """
     Run SAE probing evaluation on a given SAE.
@@ -89,18 +83,6 @@ def run_sae_probe(
     Returns:
         Dictionary containing probing results for each dataset and setting
     """
-    # Create configuration
-    config = RunConfig(
-        model_name=model_name,
-        hook_name=hook_name,
-        settings=settings,
-        k_values=k_values,
-        reg_type=reg_type,
-        binarize=binarize,
-        device=device,
-        seed=42,
-    )
-
     # Set random seed
     set_seed(config.seed)
 
@@ -131,7 +113,7 @@ def run_sae_probe(
     print(f"Found {len(datasets)} binary classification datasets")
 
     # Move SAE to device
-    sae = sae.to(device)
+    sae = sae.to(config.torch_device)
 
     # Process each dataset
     all_results = {setting: [] for setting in config.settings or []}
@@ -146,7 +128,7 @@ def run_sae_probe(
             dataset_path=dataset_path,
             cache_path=cache_path,
             force_regenerate=force_regenerate,
-            autocast=autocast,
+            autocast=config.autocast,
         )
 
         # Generate SAE activations
@@ -155,7 +137,7 @@ def run_sae_probe(
             sae=sae,
             model_activations=model_activations,
             config=activation_config,
-            autocast=autocast,
+            autocast=config.autocast,
             batch_size=config.sae_batch_size,
         )
 
