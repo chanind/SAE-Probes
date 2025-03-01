@@ -4,7 +4,7 @@ import json
 import pickle
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -42,9 +42,14 @@ class ProbeResults:
     precision: float
     recall: float
     f1: float
-    model: Any
+    model: LogisticRegression
     feature_indices: list[int]
     k: int
+
+    def to_dict(self) -> dict:
+        res = asdict(self)
+        del res["model"]
+        return res
 
 
 def select_features(X_train: torch.Tensor, y_train: np.ndarray, k: int) -> list[int]:
@@ -198,7 +203,7 @@ def save_probe_results(
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Convert results to dictionaries
-    results_dicts = [asdict(r) for r in results]
+    results_dicts = [r.to_dict() for r in results]
 
     # Add metadata
     for r in results_dicts:

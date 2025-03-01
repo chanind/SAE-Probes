@@ -1,7 +1,7 @@
 """Main API for running SAE probing tasks."""
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -184,7 +184,7 @@ def run_sae_probe(
         )
 
         # Add to all results
-        all_results["normal"].extend([asdict(r) for r in results])
+        all_results["normal"].extend([r.to_dict() for r in results])
 
     # Create evaluation config
     eval_config = EvaluationConfig(
