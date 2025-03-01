@@ -13,6 +13,7 @@ from sae_probes.activations import (
     ActivationConfig,
     generate_model_activations,
     generate_sae_activations,
+    load_model,
 )
 from sae_probes.datasets import DEFAULT_DATASET_PATH, get_binary_datasets, load_dataset
 from sae_probes.evaluation import (
@@ -41,7 +42,8 @@ class RunConfig:
     batch_size: int = 128
     device: str | None = None
     seed: int = 42
-    sae_batch_size: int = 128
+    sae_batch_size: int = 512
+    llm_batch_size: int = 48
     autocast: bool = False
 
     def __post_init__(self):
@@ -114,21 +116,25 @@ def run_sae_probe(
 
     # Move SAE to device
     sae = sae.to(config.torch_device)
+    model = load_model(config.model_name, device=str(config.torch_device))
 
     # Process each dataset
     all_results = {setting: [] for setting in config.settings or []}
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
+        dataset_df, _, _ = load_dataset(dataset_tag, dataset_path)
 
         # Generate model activations
         model_activations = generate_model_activations(
+            model=model,
             dataset_tag=dataset_tag,
+            dataset_df=dataset_df,
             config=activation_config,
-            dataset_path=dataset_path,
             cache_path=cache_path,
             force_regenerate=force_regenerate,
             autocast=config.autocast,
+            batch_size=config.llm_batch_size,
         )
 
         # Generate SAE activations

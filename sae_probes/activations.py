@@ -4,12 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import torch
 from sae_lens import SAE
 from tqdm.auto import tqdm
 from transformer_lens import HookedTransformer
-
-from sae_probes.datasets import load_dataset
 
 
 @dataclass
@@ -22,50 +21,16 @@ class ActivationConfig:
     device: str = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
-def get_hook_names(model_name: str, layer: int | None = None) -> list[str]:
-    """
-    Get the hook names for a specific model and optionally a specific layer.
-
-    Args:
-        model_name: Name of the model
-        layer: Layer number (if None, returns hooks for all layers)
-
-    Returns:
-        List of hook names
-    """
-    if model_name == "gemma-2-9b":
-        if layer is not None:
-            return [f"blocks.{layer}.hook_resid_post"]
-        else:
-            return ["hook_embed"] + [
-                f"blocks.{layer_num}.hook_resid_post" for layer_num in [9, 20, 31, 41]
-            ]
-    elif model_name == "llama-3.1-8b":
-        if layer is not None:
-            return [f"blocks.{layer}.hook_resid_post"]
-        else:
-            return ["hook_embed"] + [
-                f"blocks.{layer_num}.hook_resid_post" for layer_num in [8, 16, 24, 31]
-            ]
-    elif model_name == "gemma-2-2b":
-        if layer is not None:
-            return [f"blocks.{layer}.hook_resid_post"]
-        else:
-            return ["hook_embed"] + [
-                f"blocks.{layer}.hook_resid_post" for layer in [12]
-            ]
-    else:
-        raise ValueError(f"Model {model_name} not supported")
-
-
 @torch.inference_mode()
 def generate_model_activations(
+    model: HookedTransformer,
     dataset_tag: str,
+    dataset_df: pd.DataFrame,
     config: ActivationConfig,
-    dataset_path: Path,
     cache_path: Path,
-    autocast: bool = False,
-    force_regenerate: bool = False,
+    batch_size: int,
+    autocast: bool,
+    force_regenerate: bool,
 ) -> torch.Tensor:
     """
     Generate model activations for a dataset.
@@ -93,12 +58,6 @@ def generate_model_activations(
         print(f"Loading cached activations from {activation_file}")
         return torch.load(activation_file)
 
-    # Load dataset
-    df, _, _ = load_dataset(dataset_tag, dataset_path)
-
-    # Load model
-    model = load_model(config.model_name, device=config.device)
-
     # Important to ensure correct token is at the correct position
     tokenizer = model.tokenizer
     assert tokenizer is not None
@@ -106,7 +65,7 @@ def generate_model_activations(
     tokenizer.padding_side = "right"
 
     # Get text samples
-    text = df["prompt"].tolist()
+    text = dataset_df["prompt"].tolist()
 
     # Get token lengths
     text_lengths = []
@@ -115,7 +74,6 @@ def generate_model_activations(
 
     # Generate activations
     print(f"Generating activations for {dataset_tag}")
-    batch_size = 1
     all_activations = []
 
     with torch.autocast(
@@ -157,8 +115,8 @@ def generate_sae_activations(
     sae: SAE,
     model_activations: torch.Tensor,
     config: ActivationConfig,
-    batch_size: int = 128,
-    autocast: bool = False,
+    batch_size: int,
+    autocast: bool,
 ) -> torch.Tensor:
     """
     Generate SAE activations for a dataset.
