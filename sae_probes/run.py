@@ -26,6 +26,8 @@ from sae_probes.probing import (
 )
 from sae_probes.utils import ensure_path, get_device, set_seed
 
+BROKEN_TAGS = ["158_", "159_", "160_", "161_", "162_", "163_"]
+
 
 @dataclass
 class RunSaeProbeConfig:
@@ -126,6 +128,12 @@ def run_baseline_probes(
     # Process each dataset
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
+
+        for broken_tag in BROKEN_TAGS:
+            if broken_tag in dataset_tag:
+                print(f"Skipping broken dataset {dataset_tag}")
+                continue
+
         try:
             # Load dataset
             df, train_indices, test_indices = load_dataset(
@@ -260,6 +268,12 @@ def run_sae_probe(
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
+
+        for broken_tag in BROKEN_TAGS:
+            if broken_tag in dataset_tag:
+                print(f"Skipping broken dataset {dataset_tag}")
+                continue
+
         try:
             # Load dataset
             df, train_indices, test_indices = load_dataset(
