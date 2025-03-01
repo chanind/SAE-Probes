@@ -63,6 +63,7 @@ def generate_model_activations(
     config: ActivationConfig,
     dataset_path: Path,
     cache_path: Path,
+    autocast: bool = False,
     force_regenerate: bool = False,
 ) -> torch.Tensor:
     """
@@ -116,26 +117,29 @@ def generate_model_activations(
     batch_size = 1
     all_activations = []
 
-    for i in tqdm(range(0, len(text), batch_size)):
-        batch_text = text[i : i + batch_size]
-        batch_lengths = text_lengths[i : i + batch_size]
+    with torch.autocast(
+        device_type=config.device, dtype=torch.bfloat16, enabled=autocast
+    ):
+        for i in tqdm(range(0, len(text), batch_size)):
+            batch_text = text[i : i + batch_size]
+            batch_lengths = text_lengths[i : i + batch_size]
 
-        batch = tokenizer(
-            batch_text,
-            padding=True,
-            truncation=True,
-            max_length=config.max_seq_len,
-            return_tensors="pt",
-        )
-        batch = batch.to(config.device)
+            batch = tokenizer(
+                batch_text,
+                padding=True,
+                truncation=True,
+                max_length=config.max_seq_len,
+                return_tensors="pt",
+            )
+            batch = batch.to(config.device)
 
-        logits, cache = model.run_with_cache(
-            batch["input_ids"], names_filter=[hook_name]
-        )
+            logits, cache = model.run_with_cache(
+                batch["input_ids"], names_filter=[hook_name]
+            )
 
-        for j, length in enumerate(batch_lengths):
-            activation_pos = min(length - 1, config.max_seq_len - 1)
-            all_activations.append(cache[hook_name][j, activation_pos].cpu())
+            for j, length in enumerate(batch_lengths):
+                activation_pos = min(length - 1, config.max_seq_len - 1)
+                all_activations.append(cache[hook_name][j, activation_pos].cpu())
 
     # Concatenate activations
     activations = torch.stack(all_activations)
@@ -151,6 +155,8 @@ def generate_sae_activations(
     sae: SAE,
     model_activations: torch.Tensor,
     config: ActivationConfig,
+    batch_size: int = 128,
+    autocast: bool = False,
 ) -> torch.Tensor:
     """
     Generate SAE activations for a dataset.
@@ -173,12 +179,14 @@ def generate_sae_activations(
 
     # Generate SAE activations
     print(f"Generating SAE activations for {dataset_tag} with SAE {sae_id}")
-    batch_size = 128
     sae_activations = []
 
-    for i in tqdm(range(0, len(model_activations), batch_size)):
-        batch = model_activations[i : i + batch_size].to(config.device)
-        sae_activations.append(sae.encode(batch).cpu())
+    with torch.autocast(
+        device_type=config.device, dtype=torch.bfloat16, enabled=autocast
+    ):
+        for i in tqdm(range(0, len(model_activations), batch_size)):
+            batch = model_activations[i : i + batch_size].to(config.device)
+            sae_activations.append(sae.encode(batch).cpu())
 
     # Concatenate activations
     activations = torch.cat(sae_activations)

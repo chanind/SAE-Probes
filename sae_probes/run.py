@@ -41,6 +41,7 @@ class RunConfig:
     batch_size: int = 128
     device: str | None = None
     seed: int = 42
+    sae_batch_size: int = 128
 
     def __post_init__(self):
         if self.settings is None:
@@ -67,6 +68,7 @@ def run_sae_probe(
     binarize: bool = False,
     device: str | None = None,
     force_regenerate: bool = False,
+    autocast: bool = False,
 ) -> dict[str, dict]:
     """
     Run SAE probing evaluation on a given SAE.
@@ -144,6 +146,7 @@ def run_sae_probe(
             dataset_path=dataset_path,
             cache_path=cache_path,
             force_regenerate=force_regenerate,
+            autocast=autocast,
         )
 
         # Generate SAE activations
@@ -152,6 +155,8 @@ def run_sae_probe(
             sae=sae,
             model_activations=model_activations,
             config=activation_config,
+            autocast=autocast,
+            batch_size=config.sae_batch_size,
         )
 
         # Load dataset
