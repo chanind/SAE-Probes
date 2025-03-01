@@ -8,10 +8,10 @@ packages = [{ include = "sae_probes" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-transformer-lens = "^2.15.0"
-sae-lens = "^5.5.2"
-transformers = "^4.49.0"
-scikit-learn = "^1.6.1"
+transformer-lens = "^2.11.0"
+sae-lens = "^5.5.0"
+transformers = "^4.45.0"
+scikit-learn = "^1.6.0"
 pandas = "^2.2.3"
 tqdm = "^4.67.1"
 
