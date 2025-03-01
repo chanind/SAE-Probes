@@ -144,7 +144,7 @@ def train_k_sparse_probe(
             X_test_k = (X_test_k > 0).astype(float)
 
         # Train model
-        C_values = np.logspace(-4, 4, 20)
+        C_values = np.logspace(5, -5, 10)
         best_auc = -1
         best_model = None
 
