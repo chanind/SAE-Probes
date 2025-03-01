@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
 import sae_probes.probing
-from sae_probes.probing import ProbeConfig, select_features, train_probe
+from sae_probes.probing import ProbeConfig, select_features, train_k_sparse_probe
 
 
 class TestProbeComparison:
@@ -99,6 +99,7 @@ class TestProbeComparison:
                 best_model = model
 
         # Calculate reference AUC
+        assert best_model is not None
         y_pred_proba = best_model.predict_proba(X_test_filtered)[:, 1]
         reference_auc = roc_auc_score(y_test, y_pred_proba)
 
@@ -123,7 +124,7 @@ class TestProbeComparison:
             sae_probes.probing.select_features = MockFeatureSelector()
 
             # Train probe with our implementation
-            results = train_probe(
+            results = train_k_sparse_probe(
                 X_train=X_train,
                 y_train=y_train,
                 X_test=X_test,

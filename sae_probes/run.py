@@ -26,7 +26,7 @@ from sae_probes.probing import (
     ProbeConfig,
     save_probe_results,
     train_baseline_probe,
-    train_probe,
+    train_k_sparse_probe,
 )
 from sae_probes.utils import ensure_path, get_device, set_seed
 
@@ -88,9 +88,9 @@ class RunBaselineProbeConfig:
 
 def run_baseline_probes(
     config: RunBaselineProbeConfig,
-    dataset_path: Path = DEFAULT_DATASET_PATH,
-    results_path: Path = Path("results"),
-    cache_path: Path = Path("cache"),
+    results_dir: str | Path,
+    cache_dir: str | Path,
+    dataset_dir: str | Path = DEFAULT_DATASET_PATH,
     force_regenerate: bool = False,
 ) -> None:
     """
@@ -98,9 +98,9 @@ def run_baseline_probes(
 
     Args:
         config: Configuration for baseline probes
-        dataset_path: Path to directory containing datasets
-        results_path: Path for storing results
-        cache_path: Path for storing/reusing model activations
+        dataset_dir: Path to directory containing datasets
+        results_dir: Path for storing results
+        cache_dir: Path for storing/reusing model activations
         force_regenerate: Whether to force regeneration of activations
     """
     # Set random seed
@@ -115,11 +115,13 @@ def run_baseline_probes(
     )
 
     # Create results directory
-    results_dir = results_path / f"baseline_probes_{config.model_name}/normal_settings"
+    results_dir = (
+        Path(results_dir) / f"baseline_probes_{config.model_name}/normal_settings"
+    )
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # Get list of datasets
-    datasets = get_binary_datasets(dataset_path)
+    datasets = get_binary_datasets(Path(dataset_dir))
     print(f"Found {len(datasets)} binary classification datasets")
 
     # Load model
@@ -132,7 +134,7 @@ def run_baseline_probes(
             # Load dataset
             df, train_indices, test_indices = load_dataset(
                 dataset_tag=dataset_tag,
-                dataset_path=dataset_path,
+                dataset_path=Path(dataset_dir),
                 num_train=config.num_train,
                 test_size=None,
                 pos_ratio=0.5,
@@ -149,7 +151,7 @@ def run_baseline_probes(
             dataset_tag=dataset_tag,
             dataset_df=df,
             config=activation_config,
-            cache_path=cache_path,
+            cache_path=Path(cache_dir),
             force_regenerate=force_regenerate,
             autocast=config.autocast,
             batch_size=config.batch_size,
@@ -188,7 +190,9 @@ def run_baseline_probes(
         # Extract layer identifier from hook name for file naming
         hook_parts = config.hook_name.split(".")
         hook_identifier = hook_parts[1] if len(hook_parts) > 1 else "custom"
-        output_file = results_dir / f"{hook_identifier}_{dataset_tag}_results.json"
+        output_file = (
+            Path(results_dir) / f"{hook_identifier}_{dataset_tag}_baseline_results.json"
+        )
         with open(output_file, "w") as f:
             json.dump(results_dict, f, indent=4)
 
@@ -198,9 +202,9 @@ def run_baseline_probes(
 def run_sae_probe(
     sae: SAE,
     config: RunSaeProbeConfig,
-    cache_path: Path,
-    results_path: Path,
-    dataset_path: Path = DEFAULT_DATASET_PATH,
+    results_dir: str | Path,
+    cache_dir: str | Path,
+    dataset_dir: str | Path = DEFAULT_DATASET_PATH,
     force_regenerate: bool = False,
 ) -> dict[str, dict]:
     """
@@ -210,9 +214,9 @@ def run_sae_probe(
         sae: SAELens SAE object
         model_name: Name of model architecture
         layer: Layer number in model to probe
-        dataset_path: Path to directory containing datasets
-        cache_path: Path for storing/reusing model activations
-        settings: List of evaluation settings (normal, scarcity, imbalance, noise)
+        dataset_dir: Path to directory containing datasets
+        cache_dir: Path for storing/reusing model activations
+        results_dir: Path for storing results
         k_values: List of feature selection values to evaluate
         reg_type: Regularization type (l1 or l2)
         binarize: Whether to binarize SAE features
@@ -242,13 +246,13 @@ def run_sae_probe(
     )
 
     # Create save paths
-    ensure_path(results_path)
+    ensure_path(Path(results_dir))
 
     # Get SAE ID or use custom identifier
     sae_id = getattr(sae, "sae_id", "custom_sae")
 
     # Get list of datasets
-    datasets = get_binary_datasets(dataset_path)
+    datasets = get_binary_datasets(Path(dataset_dir))
     print(f"Found {len(datasets)} binary classification datasets")
 
     # Move SAE to device
@@ -264,7 +268,7 @@ def run_sae_probe(
             # Load dataset
             df, train_indices, test_indices = load_dataset(
                 dataset_tag=dataset_tag,
-                dataset_path=dataset_path,
+                dataset_path=Path(dataset_dir),
                 num_train=1024,  # Default for normal setting
                 test_size=None,
                 pos_ratio=0.5,
@@ -281,7 +285,7 @@ def run_sae_probe(
             dataset_tag=dataset_tag,
             dataset_df=df,
             config=activation_config,
-            cache_path=cache_path,
+            cache_path=Path(cache_dir),
             force_regenerate=force_regenerate,
             autocast=config.autocast,
             batch_size=config.llm_batch_size,
@@ -310,7 +314,7 @@ def run_sae_probe(
             y_test = le.transform(y_test)
 
         # Train and evaluate probes
-        results = train_probe(
+        results = train_k_sparse_probe(
             X_train=X_train,
             y_train=y_train,  # type: ignore
             X_test=X_test,
@@ -323,7 +327,7 @@ def run_sae_probe(
             dataset=dataset_tag,
             config=probe_config,
             sae_id=sae_id,
-            save_path=results_path
+            save_path=Path(results_dir)
             / f"{dataset_tag}_{sae_id}_{probe_config.reg_type}.json",
         )
 
@@ -333,7 +337,7 @@ def run_sae_probe(
     # Create evaluation config
     eval_config = EvaluationConfig(model_name=config.model_name)
 
-    with open(results_path / "all_results.json", "w") as f:
+    with open(Path(results_dir) / "all_results.json", "w") as f:
         json.dump(all_results, f, indent=4, ensure_ascii=False)
 
     # Summarize results

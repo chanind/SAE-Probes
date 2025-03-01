@@ -4,11 +4,11 @@ import numpy as np
 import torch
 
 from sae_probes.probing import (
+    BaselineProbeResults,
     ProbeConfig,
-    ProbeResults,
     select_features,
     train_baseline_probe,
-    train_probe,
+    train_k_sparse_probe,
 )
 
 
@@ -77,7 +77,7 @@ class TestProbeTraining:
             seed=42,
         )
 
-        results = train_probe(
+        results = train_k_sparse_probe(
             X_train=X_train,
             y_train=y_train,
             X_test=X_test,
@@ -151,8 +151,8 @@ class TestBaselineProbeTraining:
         )
 
         # Check results
-        assert isinstance(results_l2, ProbeResults)
-        assert isinstance(results_l1, ProbeResults)
+        assert isinstance(results_l2, BaselineProbeResults)
+        assert isinstance(results_l1, BaselineProbeResults)
 
         # Both should have high AUC since data is linearly separable
         assert results_l2.auc > 0.9
@@ -162,7 +162,3 @@ class TestBaselineProbeTraining:
         assert np.sum(abs(results_l1.model.coef_) > 0) < np.sum(
             abs(results_l2.model.coef_) > 0
         )
-
-        # Check that the feature indices are correct
-        assert len(results_l2.feature_indices) == X_train.shape[1]
-        assert results_l2.k == X_train.shape[1]

@@ -35,7 +35,7 @@ class ProbeConfig:
 
 
 @dataclass
-class ProbeResults:
+class KSparseProbeResults:
     """Results from probe training."""
 
     auc: float
@@ -46,6 +46,23 @@ class ProbeResults:
     model: LogisticRegression
     feature_indices: list[int]
     k: int
+
+    def to_dict(self) -> dict:
+        res = asdict(self)
+        del res["model"]
+        return res
+
+
+@dataclass
+class BaselineProbeResults:
+    """Results from probe training."""
+
+    auc: float
+    accuracy: float
+    precision: float
+    recall: float
+    f1: float
+    model: LogisticRegression
 
     def to_dict(self) -> dict:
         res = asdict(self)
@@ -73,13 +90,13 @@ def select_features(X_train: torch.Tensor, y_train: np.ndarray, k: int) -> list[
     return sorted_indices[:k].tolist()
 
 
-def train_probe(
+def train_k_sparse_probe(
     X_train: torch.Tensor | np.ndarray,
     y_train: np.ndarray,
     X_test: torch.Tensor | np.ndarray,
     y_test: np.ndarray,
     config: ProbeConfig,
-) -> list[ProbeResults]:
+) -> list[KSparseProbeResults]:
     """
     Train linear probes on SAE features.
 
@@ -168,7 +185,7 @@ def train_probe(
 
         # Store results
         results.append(
-            ProbeResults(
+            KSparseProbeResults(
                 auc=float(auc),
                 accuracy=float(accuracy),
                 precision=float(precision),
@@ -190,7 +207,7 @@ def train_baseline_probe(
     y_test: np.ndarray,
     reg_type: Literal["l1", "l2"] = "l2",
     seed: int = 42,
-) -> ProbeResults:
+) -> BaselineProbeResults:
     """
     Train a baseline logistic regression probe directly on model activations.
     This is the standard neural probe approach used in the literature.
@@ -286,20 +303,18 @@ def train_baseline_probe(
     f1 = f1_score(y_test, y_pred, zero_division=0)  # type: ignore
 
     # Since we're not doing feature selection, just return all indices
-    return ProbeResults(
+    return BaselineProbeResults(
         auc=float(auc),
         accuracy=float(accuracy),
         precision=float(precision),
         recall=float(recall),
         f1=float(f1),
         model=final_model,
-        feature_indices=list(range(X_train.shape[1])),
-        k=X_train.shape[1],  # Using full dimensionality
     )
 
 
 def save_probe_results(
-    results: list[ProbeResults],
+    results: list[KSparseProbeResults],
     dataset: str,
     config: ProbeConfig,
     sae_id: str,
