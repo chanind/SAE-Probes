@@ -2,6 +2,7 @@
 
 import json
 import traceback
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -260,7 +261,7 @@ def run_sae_probe(
     model = load_model(config.model_name, device=str(config.torch_device))
 
     # Process each dataset
-    all_results = {}
+    all_results = defaultdict(list)
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
