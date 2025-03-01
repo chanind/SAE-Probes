@@ -15,6 +15,8 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 from tqdm.auto import tqdm
 
 
@@ -179,6 +181,121 @@ def train_probe(
         )
 
     return results
+
+
+def train_baseline_probe(
+    X_train: torch.Tensor | np.ndarray,
+    y_train: np.ndarray,
+    X_test: torch.Tensor | np.ndarray,
+    y_test: np.ndarray,
+    reg_type: Literal["l1", "l2"] = "l2",
+    seed: int = 42,
+) -> ProbeResults:
+    """
+    Train a baseline logistic regression probe directly on model activations.
+    This is the standard neural probe approach used in the literature.
+
+    Args:
+        X_train: Training features (model activations)
+        y_train: Training labels
+        X_test: Test features (model activations)
+        y_test: Test labels
+        reg_type: Type of regularization (l1 or l2)
+        seed: Random seed
+
+    Returns:
+        Probe results
+    """
+    # Convert tensors to numpy if needed
+    if isinstance(X_train, torch.Tensor):
+        X_train = X_train.cpu().numpy()
+    if isinstance(X_test, torch.Tensor):
+        X_test = X_test.cpu().numpy()
+
+    # Set random seed
+    np.random.seed(seed)
+
+    # Standardize features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    # Get class balance of training set
+    pos_ratio = np.mean(y_train)
+    neg_weight = pos_ratio / (1 - pos_ratio) if pos_ratio < 0.5 else 1.0
+    class_weight = {0: neg_weight, 1: 1.0}
+
+    # Grid search for regularization strength - match original range
+    Cs = np.logspace(5, -5, 10)  # Match original implementation
+    best_auc = -1
+    best_C = 1.0
+
+    # Use cross-validation to find best C
+    n_folds = min(5, len(y_train) // 5)  # Ensure enough samples per fold
+    if n_folds >= 2:
+        cv = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+
+        for C in Cs:
+            model = LogisticRegression(
+                penalty=reg_type,
+                C=C,
+                solver="liblinear" if reg_type == "l1" else "lbfgs",
+                max_iter=1000,
+                class_weight=class_weight,
+                random_state=seed,
+            )
+
+            # Cross-validation scores
+            cv_scores = []
+            for train_idx, val_idx in cv.split(X_train_scaled, y_train):
+                X_cv_train, X_cv_val = (
+                    X_train_scaled[train_idx],
+                    X_train_scaled[val_idx],
+                )
+                y_cv_train, y_cv_val = y_train[train_idx], y_train[val_idx]
+
+                model.fit(X_cv_train, y_cv_train)
+                y_cv_pred_proba = model.predict_proba(X_cv_val)[:, 1]
+                cv_scores.append(roc_auc_score(y_cv_val, y_cv_pred_proba))
+
+            avg_score = np.mean(cv_scores)
+
+            if avg_score > best_auc:
+                best_auc = avg_score
+                best_C = float(C)
+
+    # Train final model with best C
+    final_model = LogisticRegression(
+        penalty=reg_type,
+        C=best_C,
+        solver="liblinear" if reg_type == "l1" else "lbfgs",
+        max_iter=1000,
+        class_weight=class_weight,
+        random_state=seed,
+    )
+    final_model.fit(X_train_scaled, y_train)
+
+    # Evaluate on test set
+    y_pred_proba = final_model.predict_proba(X_test_scaled)[:, 1]
+    y_pred = final_model.predict(X_test_scaled)
+
+    auc = roc_auc_score(y_test, y_pred_proba)
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)  # type: ignore
+    recall = recall_score(y_test, y_pred, zero_division=0)  # type: ignore
+    f1 = f1_score(y_test, y_pred, zero_division=0)  # type: ignore
+
+    # Since we're not doing feature selection, just return all indices
+    return ProbeResults(
+        auc=float(auc),
+        accuracy=float(accuracy),
+        precision=float(precision),
+        recall=float(recall),
+        f1=float(f1),
+        model=final_model,
+        feature_indices=list(range(X_train.shape[1])),
+        k=X_train.shape[1],  # Using full dimensionality
+    )
 
 
 def save_probe_results(

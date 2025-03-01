@@ -2,6 +2,16 @@
 
 __version__ = "0.1.0"
 
-from sae_probes.run import RunConfig, run_sae_probe
+from sae_probes.run import (
+    RunBaselineProbeConfig,
+    RunSaeProbeConfig,
+    run_baseline_probes,
+    run_sae_probe,
+)
 
-__all__ = ["run_sae_probe", "RunConfig"]
+__all__ = [
+    "run_sae_probe",
+    "run_baseline_probes",
+    "RunSaeProbeConfig",
+    "RunBaselineProbeConfig",
+]
