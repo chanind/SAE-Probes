@@ -19,13 +19,8 @@ from sae_probes.activations import (
     load_model,
 )
 from sae_probes.datasets import DEFAULT_DATASET_PATH, get_binary_datasets, load_dataset
-from sae_probes.evaluation import (
-    EvaluationConfig,
-    summarize_results,
-)
 from sae_probes.probing import (
     ProbeConfig,
-    save_probe_results,
     train_baseline_probe,
     train_k_sparse_probe,
 )
@@ -261,7 +256,7 @@ def run_sae_probe(
     model = load_model(config.model_name, device=str(config.torch_device))
 
     # Process each dataset
-    all_results = defaultdict(list)
+    results = defaultdict(dict)
 
     for dataset_info in tqdm(datasets, desc="Processing datasets"):
         dataset_tag = dataset_info.tag
@@ -315,7 +310,7 @@ def run_sae_probe(
             y_test = le.transform(y_test)
 
         # Train and evaluate probes
-        results = train_k_sparse_probe(
+        k_sparse_probing_results = train_k_sparse_probe(
             X_train=X_train,
             y_train=y_train,  # type: ignore
             X_test=X_test,
@@ -323,31 +318,18 @@ def run_sae_probe(
             config=probe_config,
         )
 
-        save_probe_results(
-            results=results,
-            dataset=dataset_tag,
-            config=probe_config,
-            sae_id=sae_id,
-            save_path=Path(results_dir)
-            / f"{dataset_tag}_{sae_id}_{probe_config.reg_type}.json",
-        )
-
         # Add to all results
-        all_results["normal"].extend([r.to_dict() for r in results])
+        results["normal"][dataset_tag] = {
+            "results": {k: r.to_dict() for k, r in k_sparse_probing_results.items()},
+            "reg_type": probe_config.reg_type,
+            "binarize": probe_config.binarize,
+        }
 
-    # Create evaluation config
-    eval_config = EvaluationConfig(model_name=config.model_name)
+    with open(
+        Path(results_dir)
+        / f"sae_results_{config.model_name}_{config.hook_name}_{sae_id}.json",
+        "w",
+    ) as f:
+        json.dump(results, f, indent=4, ensure_ascii=False)
 
-    with open(Path(results_dir) / "all_results.json", "w") as f:
-        json.dump(all_results, f, indent=4, ensure_ascii=False)
-
-    # Summarize results
-    summaries = summarize_results(
-        results=all_results,
-        config=eval_config,
-    )
-
-    return {
-        "results": all_results,
-        "summaries": summaries,
-    }
+    return results

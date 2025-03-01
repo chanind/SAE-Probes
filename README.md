@@ -73,54 +73,6 @@ run_baseline_probes(
 )
 ```
 
-## Comparing SAE vs Baseline Probes
-
-You can use the evaluation utilities to compare SAE probes with baseline probes:
-
-```python
-from pathlib import Path
-import pandas as pd
-from sae_probes.evaluation import (
-    EvaluationConfig,
-    collect_results,
-    compare_sae_vs_baseline,
-    calculate_win_rate
-)
-
-# Load results for both
-eval_config = EvaluationConfig(model_name="gemma-2-9b")
-results_path = Path("results")
-
-# Load SAE and baseline results
-sae_results = collect_results(
-    results_path / "sae_probes_gemma-2-9b/normal_setting",
-    config=eval_config
-)
-baseline_results = collect_results(
-    results_path / "baseline_probes_gemma-2-9b/normal_settings",
-    config=eval_config
-)
-
-# Compare results
-comparison = compare_sae_vs_baseline(
-    sae_results=sae_results,
-    baseline_results=baseline_results,
-    metric="auc",
-    k_value=128  # Compare using 128 features for SAEs
-)
-
-# Calculate win rates
-win_rates = calculate_win_rate(
-    sae_results=sae_results,
-    baseline_results=baseline_results,
-    metric="auc"
-)
-
-# Display results
-print(f"SAE win rate: {win_rates['normal']['overall']['overall']:.2f}")
-print(f"Average AUC improvement: {comparison['auc_diff'].mean():.4f}")
-```
-
 ## Development
 
 ### Setup

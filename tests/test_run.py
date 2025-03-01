@@ -136,6 +136,6 @@ class TestProbeComparison:
             sae_probes.probing.select_features = original_select_features
 
         # Check that AUC is close
-        assert abs(reference_auc - results[0].auc) < 1e-10, (
-            f"Expected AUC {reference_auc}, got {results[0].auc}"
+        assert abs(reference_auc - results[2].auc) < 1e-10, (
+            f"Expected AUC {reference_auc}, got {results[2].auc}"
         )

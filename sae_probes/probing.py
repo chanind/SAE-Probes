@@ -96,7 +96,7 @@ def train_k_sparse_probe(
     X_test: torch.Tensor | np.ndarray,
     y_test: np.ndarray,
     config: ProbeConfig,
-) -> list[KSparseProbeResults]:
+) -> dict[int, KSparseProbeResults]:
     """
     Train linear probes on SAE features.
 
@@ -110,7 +110,7 @@ def train_k_sparse_probe(
     Returns:
         List of probe results for different k values
     """
-    results = []
+    results = {}
 
     # Convert tensors to numpy if needed
     if isinstance(X_train, torch.Tensor):
@@ -184,17 +184,15 @@ def train_k_sparse_probe(
         f1 = f1_score(y_test, y_pred, zero_division=0)  # type: ignore
 
         # Store results
-        results.append(
-            KSparseProbeResults(
-                auc=float(auc),
-                accuracy=float(accuracy),
-                precision=float(precision),
-                recall=float(recall),
-                f1=float(f1),
-                model=best_model,
-                feature_indices=k_indices,
-                k=k,
-            )
+        results[k] = KSparseProbeResults(
+            auc=float(auc),
+            accuracy=float(accuracy),
+            precision=float(precision),
+            recall=float(recall),
+            f1=float(f1),
+            model=best_model,
+            feature_indices=k_indices,
+            k=k,
         )
 
     return results
@@ -314,7 +312,7 @@ def train_baseline_probe(
 
 
 def save_probe_results(
-    results: list[KSparseProbeResults],
+    results: dict[int, KSparseProbeResults],
     dataset: str,
     config: ProbeConfig,
     sae_id: str,
@@ -334,10 +332,10 @@ def save_probe_results(
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Convert results to dictionaries
-    results_dicts = [r.to_dict() for r in results]
+    results_dicts = {k: r.to_dict() for k, r in results.items()}
 
     # Add metadata
-    for r in results_dicts:
+    for k, r in results_dicts.items():
         r["dataset"] = dataset
         r["reg_type"] = config.reg_type
         r["binarize"] = config.binarize

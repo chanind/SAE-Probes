@@ -89,16 +89,16 @@ class TestProbeTraining:
         assert len(results) == 4  # One for each k value
 
         # Top features should be 0 and 1
-        assert 0 in results[1].feature_indices
-        assert 0 in results[2].feature_indices and 1 in results[2].feature_indices
+        assert 0 in results[2].feature_indices
+        assert 0 in results[5].feature_indices and 1 in results[5].feature_indices
 
         # AUC should be high since data is linearly separable
-        assert results[1].auc > 0.9
         assert results[2].auc > 0.9
+        assert results[5].auc > 0.9
 
         # More features should not significantly improve performance
         # since only the first two features are meaningful
-        assert abs(results[3].auc - results[2].auc) < 0.1
+        assert abs(results[10].auc - results[5].auc) < 0.1
 
 
 class TestBaselineProbeTraining:
