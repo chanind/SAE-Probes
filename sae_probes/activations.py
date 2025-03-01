@@ -58,6 +58,7 @@ def get_hook_names(model_name: str, layer: int | None = None) -> list[str]:
         raise ValueError(f"Model {model_name} not supported")
 
 
+@torch.inference_mode()
 def generate_model_activations(
     dataset_tag: str,
     config: ActivationConfig,
@@ -150,6 +151,7 @@ def generate_model_activations(
     return activations
 
 
+@torch.inference_mode()
 def generate_sae_activations(
     dataset_tag: str,
     sae: SAE,
