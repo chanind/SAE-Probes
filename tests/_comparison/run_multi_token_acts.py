@@ -3,27 +3,27 @@ import os
 
 os.environ["OMP_NUM_THREADS"] = "10"
 
-import torch
-from utils_data import (
-    get_numbered_binary_tags,
-    get_dataset_sizes,
-    get_yvals,
-    get_train_test_indices,
-)
+import argparse
 import os
-from tqdm import tqdm
-import pandas as pd
-from utils_training import find_best_reg
 import pickle as pkl
 import warnings
-from sklearn.exceptions import ConvergenceWarning
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import argparse
-from sklearn.metrics import roc_auc_score, accuracy_score
+
 import einops
-import argparse
+import numpy as np
+import pandas as pd
+import torch
+from sklearn.decomposition import PCA
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.metrics import roc_auc_score
+from tqdm import tqdm
+
+from utils_data import (
+    get_dataset_sizes,
+    get_numbered_binary_tags,
+    get_train_test_indices,
+    get_yvals,
+)
+from utils_training import find_best_reg
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 
@@ -352,7 +352,7 @@ if "baseline_attn" in to_run_list:
     for dataset in datasets:
         try:
             run_baseline_concat_probing(dataset, layer, sae_id, number_to_concat, pca_k)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             continue
 
 
@@ -524,5 +524,5 @@ if "attn_probing" in to_run_list:
     for dataset in tqdm(datasets):
         try:
             train_attn_probing_on_model_acts(dataset, layer, sae_id)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             continue

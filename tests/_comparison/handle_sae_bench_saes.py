@@ -1,17 +1,14 @@
 # %%
-import os
-from sae_bench.sae_bench_utils import general_utils
+import json
+from collections import defaultdict
+
+import torch
 from sae_bench.custom_saes.run_all_evals_dictionary_learning_saes import (
     MODEL_CONFIGS,
     get_all_hf_repo_autoencoders,
-)
-from sae_bench.custom_saes.run_all_evals_dictionary_learning_saes import (
     load_dictionary_learning_sae,
 )
-import torch
-from collections import defaultdict
-import json
-from pathlib import Path
+from sae_bench.sae_bench_utils import general_utils
 
 
 def get_gemma_2_2b_sae_ids(layer):
