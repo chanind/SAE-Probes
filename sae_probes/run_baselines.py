@@ -1,36 +1,33 @@
-import pandas as pd
+import os
+
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from utils_data import (
-    get_xy_traintest,
-    get_numbered_binary_tags,
+    corrupt_ytrain,
+    get_class_imbalance,
+    get_classimabalance_num_train,
+    get_corrupt_frac,
     get_dataset_sizes,
-    get_layers,
     get_datasets,
+    get_disagree_glue,
+    get_glue_traintest,
+    get_layers,
+    get_numbered_binary_tags,
+    get_OOD_datasets,
+    get_OOD_traintest,
+    get_training_sizes,
+    get_xy_traintest,
+    get_xy_traintest_specify,
 )
+from utils_sae import get_xy_glue_sae, get_xy_OOD_sae
 from utils_training import (
-    find_best_mlp,
     find_best_knn,
+    find_best_mlp,
     find_best_pcareg,
     find_best_reg,
     find_best_xgboost,
 )
-import numpy as np
-from utils_data import (
-    get_xy_traintest,
-    get_xy_traintest_specify,
-    get_training_sizes,
-    get_class_imbalance,
-    get_classimabalance_num_train,
-    corrupt_ytrain,
-    get_corrupt_frac,
-    get_OOD_traintest,
-    get_OOD_datasets,
-    get_disagree_glue,
-    get_glue_traintest,
-)
-from utils_sae import get_xy_OOD_sae, get_xy_glue_sae
-import os
 
 dataset_sizes = get_dataset_sizes()
 datasets = get_numbered_binary_tags()
@@ -634,26 +631,3 @@ def examine_glue_classifier():
         print(
             f"{prompts[idx]:<60} | {prob_class_0[idx]:.3f}     | {y_test_og[idx]:<8} | {y_test_ens[idx]:<8}"
         )
-
-
-if __name__ == "__main__":
-    """
-    Note: we do not recommend you run the functions like this.
-    Each run_all file can be run in parallel instances using a 
-    bash script to considerably speed up the runs.
-    """
-    run_all_baseline_normal(
-        "gemma-2-9b"
-    )  # runs baseline probes in standard conditions on 4 evenly spaced layers
-    coalesce_all_baseline_normal(model_name="gemma-2-9b")
-
-    run_all_baseline_scarcity("gemma-2-9b", layer=20)
-    coalesce_all_scarcity("gemma-2-9b", layer=20)
-
-    run_all_baseline_class_imbalance("gemma-2-9b", layer=20)
-    coalesce_all_imbalance("gemma-2-9b", layer=20)
-
-    run_all_baseline_corrupt("gemma-2-9b", layer=20)
-    coalesce_all_corrupt("gemma-2-9b", layer=20)
-
-    run_datasets_OOD("gemma-2-9b", runsae=True, layer=20, translation=False)

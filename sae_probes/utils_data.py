@@ -1,10 +1,10 @@
-from joblib import Parallel, delayed
-import pandas as pd
+import glob
+import os
+
 import numpy as np
-from tqdm import tqdm
+import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
-import os, glob
 
 try:
     from IPython import get_ipython  # type: ignore
@@ -248,122 +248,127 @@ def get_xy_OOD(dataset, model_name="gemma-2-9b", layer=20):
         weights_only=False,
     )
     df = pd.read_csv(f"data/OOD data/{dataset}_OOD.csv")
-    le = LabelEncoder()
-    y = le.fit_transform(df["target"].values)
+    y = df["target"].values
     return X, y
 
 
 def get_OOD_traintest(dataset, model_name="gemma-2-9b", layer=20):
-    X_train, y_train, _, _ = get_xy_traintest_specify(
-        num_train=1024,
-        numbered_dataset_tag=dataset,
-        layer=layer,
-        model_name=model_name,
-        MAX_AMT=1500,
-        pos_ratio=0.5,
-        num_test=0,
-    )
+    # gets the train test for OOD
+    # train is fixed for all (on 66_living-room)
+    # test is on the OOD dataset
+    X_train, y_train = get_xyvals("66_living-room", layer, model_name)
     X_test, y_test = get_xy_OOD(dataset, model_name, layer)
     return X_train, y_train, X_test, y_test
 
 
 def get_xy_glue(toget="ensemble"):
+    # toget = original_target or ensemble
     X = torch.load(
-        f"data/dataset_investigate/87_glue_cola_blocks.20.hook_resid_post.pt",
-        weights_only=False,
+        "data/model_activations_gemma-2-9b/87_glue_cola_blocks.20.hook_resid_post.pt"
     )
-    df = pd.read_csv(f"results/investigate/87_glue_cola_investigate.csv")
-    le = LabelEncoder()
-    y = le.fit_transform(df[toget].values)
+    df = pd.read_csv("results/investigate/87_glue_cola_investigate.csv")
+    y = df[toget].values
     return X, y
 
 
 def get_disagree_glue(path_beginning=""):
+    # returns the indices where the original target and the ensemble disagree
     df = pd.read_csv(
-        f"{path_beginning}/results/investigate/87_glue_cola_investigate.csv"
+        f"{path_beginning}results/investigate/87_glue_cola_investigate.csv"
     )
-    # Get indices where original target and ensemble predictions disagree
-    original = np.array(df["original_target"], dtype=int)
-    ensemble = np.array(df["ensemble"], dtype=int)
-    disagree_idx = np.where(original != ensemble)[0]
-    return disagree_idx
+    disagree_indices = df[df["original_target"] != df["ensemble"]].index.values
+    return disagree_indices
 
 
 def get_glue_traintest(toget="ensemble", model_name="gemma-2-9b", layer=20):
-    X_train, y_train, _, _ = get_xy_traintest_specify(
-        num_train=1024,
-        numbered_dataset_tag="87_glue_cola",
-        layer=layer,
-        model_name=model_name,
-        MAX_AMT=1500,
-        pos_ratio=0.5,
-        num_test=0,
+    X, y = get_xy_glue(toget)
+    num_train = 1024  # Define the number of training samples
+    # Create train-test split for GLUE CoLA dataset
+    train_indices, test_indices = get_train_test_indices(
+        y, num_train, X.shape[0] - num_train - 1, pos_ratio=0.5, seed=42
     )
-    X_test, y_test = get_xy_glue(toget)
-    return X_train, y_train, X_test, y_test
+    return X[train_indices], y[train_indices], X[test_indices], y[test_indices]
 
 
 def get_datasets(model_name="llama-3.1-8b"):
     # Get all files in the directory
-    dataset_sizes = get_dataset_sizes()
-    files = os.listdir(f"data/model_activations_{model_name}")
+    if model_name != "sae":
+        files = glob.glob(f"data/model_activations_{model_name}/*.pt")
+    else:
+        files = glob.glob("data/sae_activations_gemma-2-9b/*.pt")
 
-    # Filter for files containing 'blocks'
-    block_files = [f for f in files if "blocks" in f]
+    # Filter out files that contain 'hook_embed'
+    filtered_files = [file for file in files if "hook_embed" not in file]
 
-    # Extract unique dataset names by removing _blocks and everything after
-    datasets = set()
-    for file in block_files:
-        dataset = file.split("_blocks")[0]
-        if dataset in dataset_sizes.keys():  # binary dfs
-            datasets.add(dataset)
+    # Extract the desired part of the filename
+    # For example, from 'data/model_activations_gemma-2-9b/10_financial_transactions_blocks.9.hook_resid_post.pt'
+    # we want to extract '10_financial_transactions'
+    extracted_names = [
+        os.path.basename(file).split("_blocks.")[0] for file in filtered_files
+    ]
 
-    return sorted(list(datasets))
+    # Return unique names
+    return list(set(extracted_names))
 
 
 def get_layers(model_name="gemma-2-9b"):
     if model_name == "gemma-2-9b":
-        layers = ["embed", 9, 20, 31, 41]
+        return [9, 20, 31, 41]  # Example layers for gemma-2-9b
     elif model_name == "llama-3.1-8b":
-        layers = ["embed", 8, 16, 24, 31]
-    elif model_name == "gemma-2-2b":
-        layers = [12]
+        return [7, 15, 23, 31]  # Example layers for llama-3.1-8b
+    elif model_name == "sae":
+        return [20]
     else:
-        raise ValueError("model not accepted")
-    return layers
+        raise ValueError(f"Unknown model name: {model_name}")
 
 
 def get_avg_test_size():
-    sizes = get_dataset_sizes()
-    test = []
-    for dataset in sizes.keys():
-        size = sizes[dataset]
-        test.append(max(100, size - 1024))
-    test = np.array(test)
+    tags = get_numbered_binary_tags()
+    results = []
+    for tag in tags:
+        y = get_yvals(tag)
+        _, num_test = get_classimabalance_num_train(tag)
+        pos_ratio = 0.5
+        pos_test_size = int(np.ceil(pos_ratio * num_test))
+        neg_test_size = num_test - pos_test_size
+        pos_indices = np.where(y == 1)[0]
+        neg_indices = np.where(y == 0)[0]
+        if len(pos_indices) < pos_test_size or len(neg_indices) < neg_test_size:
+            # print(f"Not enough samples to test {tag}, skipping")
+            continue
+        results.append(num_test)
+    return np.mean(results)
 
 
-# get_avg_test_size()
-# print(len(get_datasets()))
+def get_sae_xvals(dataset, layer=20, model_name="gemma-2-9b", k=128):
+    # k is number of top features
+    fname = f"data/sae_activations_{model_name}/k{k}/{dataset}_blocks.{layer}.hook_resid_post.pt"
+    activations = torch.load(fname, weights_only=False)
+    return activations
 
-# get_OOD_traintest('87_glue_cola')
-# p = get_training_sizes()
-# Xtrain, ytrain, Xtest, ytest = get_glue_traintest()
-# print(Xtrain.shape, ytrain.shape, Xtest.shape, ytest.shape)
 
-# dataset = '100_news_fake'
-# num_train, num_test = get_classimabalance_num_train(dataset)
-# # print(num_train)
-# # # print(num_train)
-# print(num_train, num_test)
-# X_train, y_train, X_test, y_test  = get_xy_traintest_specify(num_train = num_train,num_test = num_test, numbered_dataset_tag = dataset, layer = 20, model_name = 'gemma-2-9b', pos_ratio=0.05)
-# print(y_test.shape)
-# # print(X_test.shape[0], X_train.shape[0])
-# X_train, y_train, X_test, y_test  = get_xy_traintest(1024, dataset, layer = 20, model_name = 'gemma-2-9b')
-# # print(f"Train ratio: {sum(y_train)/len(y_train)}, Test ratio: {sum(y_test)/len(y_test)}")
-# print(y_train, y_train.sum())
+def get_xy_OOD_sae(dataset, k=128, return_indices=False):
+    # gets the train test for OOD using SAE activations
+    # train is fixed for all (on 66_living-room)
+    # test is on the OOD dataset
+    X_train = get_sae_xvals("66_living-room", k=k)
+    y_train = get_yvals("66_living-room")
+    X_test = get_sae_xvals(dataset, k=k)
+    df = pd.read_csv(f"data/OOD data/{dataset}_OOD.csv")
+    y_test = df["target"].values
+    if return_indices:
+        return (
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            torch.load(f"data/sae_activations_gemma-2-9b/k{k}/top_indices.pt"),
+        )
+    return X_train, y_train, X_test, y_test
 
-# y_train2 = corrupt_ytrain(y_train, frac = 0.25)
-# print(np.abs(y_train - y_train2).sum())
 
-# points = get_corrupt_frac()
-# print(points)
+def get_xy_glue_sae(toget="ensemble", k=128):
+    X = get_sae_xvals("87_glue_cola", k=k)
+    df = pd.read_csv("results/investigate/87_glue_cola_investigate.csv")
+    y = df[toget].values
+    return X, y

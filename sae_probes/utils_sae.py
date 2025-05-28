@@ -1,12 +1,12 @@
 # %%
-import pickle as pkl
-from sae_lens import SAE
-from sae_lens.toolkit.pretrained_saes_directory import get_pretrained_saes_directory
-from handle_sae_bench_saes import get_gemma_2_2b_sae_ids, load_gemma_2_2b_sae
-from utils_data import get_xy_OOD, get_xyvals, get_xy_glue
-import torch
 import numpy as np
 import pandas as pd
+import torch
+from sae_lens import SAE
+from sae_lens.toolkit.pretrained_saes_directory import get_pretrained_saes_directory
+from utils_data import get_xy_glue, get_xy_OOD, get_xyvals
+
+from handle_sae_bench_saes import get_gemma_2_2b_sae_ids, load_gemma_2_2b_sae
 
 
 def get_gemma_2_9b_sae_ids(layer):
@@ -135,7 +135,7 @@ def get_xy_glue_sae(toget="ensemble", k=128):
     _, y_train = get_xyvals(dataset, layer=20, model_name="gemma-2-9b", MAX_AMT=1500)
     X_test = (
         torch.load(
-            f"data/dataset_investigate/sae_gemma-2-9b_87_glue_cola.pt",
+            "data/dataset_investigate/sae_gemma-2-9b_87_glue_cola.pt",
             weights_only=False,
         )
         .to_dense()

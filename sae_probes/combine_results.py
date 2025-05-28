@@ -1,14 +1,11 @@
-# %%
 import glob
-import pickle
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+import pickle
+
+import pandas as pd
 from tqdm import tqdm
 
 
-# %%
 def process_metrics(file, model_name):
     with open(file, "rb") as f:
         try:
@@ -22,7 +19,7 @@ def process_metrics(file, model_name):
                     metric["sae_id"] = f"{name}"
                     metric["sae_l0"] = rounded_l0
             return metrics
-        except Exception as e:
+        except Exception:
             return None
 
 
@@ -82,9 +79,6 @@ def process_setting(setting, model_name):
     return df
 
 
-# %%
-
 for setting in ["normal", "scarcity", "class_imbalance", "label_noise"]:
     for model_name in ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]:
         process_setting(setting, model_name)
-# %%
