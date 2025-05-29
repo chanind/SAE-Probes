@@ -546,6 +546,7 @@ def ood_pruning(
         layer=layer,
         return_indices=True,
         num_train=1500,
+        cache_path=cache_path,
     )
 
     results = []
@@ -590,18 +591,16 @@ if __name__ == "__main__":
     Each run_all file can be run in parallel instances using a 
     bash script to considerably speed up the runs.
     """
-    run_all_baseline_normal(
-        "gemma-2-9b"
-    )  # runs baseline probes in standard conditions on 4 evenly spaced layers
-    coalesce_all_baseline_normal(model_name="gemma-2-9b")
+    run_all_baseline_normal("gemma-2-9b", layers=[10, 15, 20, 25])
+    coalesce_all_baseline_normal(model_name="gemma-2-9b", layers=[10, 15, 20, 25])
 
-    run_all_baseline_scarcity("gemma-2-9b", layer=20)
-    coalesce_all_scarcity("gemma-2-9b", layer=20)
+    run_all_baseline_scarcity(model_name="gemma-2-9b", layer=20)
+    coalesce_all_scarcity(model_name="gemma-2-9b", layer=20)
 
-    run_all_baseline_class_imbalance("gemma-2-9b", layer=20)
-    coalesce_all_imbalance("gemma-2-9b", layer=20)
+    run_all_baseline_class_imbalance(model_name="gemma-2-9b", layer=20)
+    coalesce_all_imbalance(model_name="gemma-2-9b", layer=20)
 
-    run_all_baseline_corrupt("gemma-2-9b", layer=20)
-    coalesce_all_corrupt("gemma-2-9b", layer=20)
+    run_all_baseline_corrupt(model_name="gemma-2-9b", layer=20)
+    coalesce_all_corrupt(model_name="gemma-2-9b", layer=20)
 
     run_datasets_OOD("gemma-2-9b", runsae=True, layer=20, translation=False)

@@ -1,62 +1,49 @@
-# %%
-
 import argparse
 import glob
 import os
 import random
+from pathlib import Path
 
 import pandas as pd
 import torch
 from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
+from sae_probes.constants import DATA_PATH, DEFAULT_CACHE_PATH
+
 torch.set_grad_enabled(False)
 
 
 def generate_dataset_activations(
-    model_name, device="cuda:0", max_seq_len=1024, OOD=False
+    model_name: str,
+    layers: list[int],
+    device: str = "cuda",
+    max_seq_len: int = 1024,
+    OOD: bool = False,
+    cache_path: str | Path = DEFAULT_CACHE_PATH,
 ):
     os.makedirs(
-        f"data/model_activations_{model_name}{'_OOD' if OOD else ''}", exist_ok=True
+        Path(cache_path) / f"model_activations_{model_name}{'_OOD' if OOD else ''}",
+        exist_ok=True,
     )
 
     # Load the model
-    if model_name == "gemma-2-9b":
-        model = HookedTransformer.from_pretrained("google/gemma-2-9b", device=device)
-    elif model_name == "llama-3.1-8b":
-        model = HookedTransformer.from_pretrained(
-            "meta-llama/Llama-3.1-8B", device=device
-        )
-    elif model_name == "gemma-2-2b":
-        model = HookedTransformer.from_pretrained("google/gemma-2-2b", device=device)
-    else:
-        raise ValueError(f"Model {model_name} not supported")
+    model = HookedTransformer.from_pretrained(model_name, device=device)
 
     # Important to ensure correct token is at the correct position, either at the text_length position or at the end of the sequence
     tokenizer = model.tokenizer
-    tokenizer.truncation_side = "left"
-    tokenizer.padding_side = "right"
+    tokenizer.truncation_side = "left"  # type: ignore
+    tokenizer.padding_side = "right"  # type: ignore
 
     # Define hook names based on model
-    if model_name == "gemma-2-9b":
-        hook_names = ["hook_embed"] + [
-            f"blocks.{layer}.hook_resid_post" for layer in [9, 20, 31, 41]
-        ]
-    elif model_name == "llama-3.1-8b":
-        hook_names = ["hook_embed"] + [
-            f"blocks.{layer}.hook_resid_post" for layer in [8, 16, 24, 31]
-        ]
-    elif model_name == "gemma-2-2b":
-        hook_names = ["hook_embed"] + [
-            f"blocks.{layer}.hook_resid_post" for layer in [12]
-        ]
-    else:
-        raise ValueError(f"Model {model_name} not supported")
+    hook_names = ["hook_embed"] + [
+        f"blocks.{layer}.hook_resid_post" for layer in layers
+    ]
 
     if OOD:
-        dataset_names = glob.glob("data/OOD data/*.csv")
+        dataset_names = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
     else:
-        dataset_names = glob.glob("data/cleaned_data/*.csv")
+        dataset_names = glob.glob(str(DATA_PATH / "cleaned_data" / "*.csv"))
 
     # Randomize dataset names so multiple GPUs can work on it
     random.shuffle(dataset_names)
@@ -67,7 +54,9 @@ def generate_dataset_activations(
             continue
         dataset_short_name = dataset_name.split("/")[-1].split(".")[0]
         file_names = [
-            f"data/model_activations_{model_name}{'_OOD' if OOD else ''}/{dataset_short_name}_{hook_name}.pt"
+            Path(cache_path)
+            / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
+            / f"{dataset_short_name}_{hook_name}.pt"
             for hook_name in hook_names
         ]
         lengths = None
@@ -81,7 +70,7 @@ def generate_dataset_activations(
 
         text_lengths = []
         for t in text:
-            text_lengths.append(len(tokenizer(t)["input_ids"]))
+            text_lengths.append(len(tokenizer(t)["input_ids"]))  # type: ignore
 
         if lengths is not None and all(
             length == len(text_lengths) for length in lengths
@@ -113,7 +102,7 @@ def generate_dataset_activations(
                 truncation=True,
                 max_length=max_seq_len,
                 return_tensors="pt",
-            )
+            )  # type: ignore
             batch = batch.to(device)
             logits, cache = model.run_with_cache(
                 batch["input_ids"], names_filter=hook_names
@@ -133,7 +122,7 @@ def generate_dataset_activations(
         )
 
         for hook_name, file_name in zip(hook_names, file_names):
-            all_activations[hook_name] = torch.cat(all_activations[hook_name])
+            all_activations[hook_name] = torch.cat(all_activations[hook_name])  # type: ignore
             torch.save(all_activations[hook_name], file_name)
 
 
