@@ -81,6 +81,9 @@ def find_best_reg(
             X_fold_train, X_fold_val = X_train[train_index], X_train[val_index]
             y_fold_train, y_fold_val = y_train[train_index], y_train[val_index]
 
+            if len(np.unique(y_fold_train)) < 2:
+                return 0.5  # Neutral score if training fold is single-class
+
             if penalty == "l1":
                 model = LogisticRegression(
                     C=C, penalty="l1", solver="saga", random_state=seed, max_iter=1000

@@ -25,24 +25,22 @@ except:
 # DATA UTILS
 def get_binary_df() -> pd.DataFrame:
     # returns a list of the data tags for all binary classification datasets
+    # Assumes probing_datasets_MASTER.csv is in a 'data' subdir relative to this file.
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    master_csv_path = os.path.join(
+        current_file_dir, "data", "probing_datasets_MASTER.csv"
+    )
+
     try:
-        df = pd.read_csv(
-            os.path.join(
-                os.path.dirname(__file__), "..", "data", "probing_datasets_MASTER.csv"
-            )
-        )
+        df = pd.read_csv(master_csv_path)
     except FileNotFoundError:
-        # Fallback for when running tests or if structure is different
-        # This path might need adjustment depending on execution context (e.g. running from root vs package internal)
-        # A more robust solution might involve package resources or a configurable data root.
-        alt_path = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "probing_datasets_MASTER.csv"
-        )  # Assuming data is one level above package root for tests
+        # Fallback for cases where CWD might be project root and path is specified from there
+        alt_path = os.path.join("sae_probes", "data", "probing_datasets_MASTER.csv")
         try:
             df = pd.read_csv(alt_path)
         except FileNotFoundError:
             raise FileNotFoundError(
-                "probing_datasets_MASTER.csv not found. Searched in expected locations."
+                f"probing_datasets_MASTER.csv not found. Searched in '{master_csv_path}' and '{alt_path}'."
             )
 
     # Filter for Binary Classification datasets
@@ -76,37 +74,28 @@ def read_dataset_df(dataset_tag: str) -> pd.DataFrame:
         )
     dataset_save_name = save_name_series.iloc[0]
 
-    # Path to actual dataset CSVs needs to be robust
-    # Assume they are in a 'data/' directory relative to where probing_datasets_MASTER.csv was found
-    # (or a globally known data root)
-    master_csv_path = os.path.join(
-        os.path.dirname(__file__), "..", "data", "probing_datasets_MASTER.csv"
-    )  # Default assumption
-    if not os.path.exists(master_csv_path):
-        master_csv_path = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "probing_datasets_MASTER.csv"
-        )
+    # Path to actual dataset CSVs
+    # Assumes probing_datasets_MASTER.csv is in a 'data' subdir relative to this file.
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    master_csv_location_dir = os.path.join(
+        current_file_dir, "data"
+    )  # Directory of the master CSV
 
-    if not os.path.exists(master_csv_path):  # if still not found
-        data_dir = "data/"  # A default guess
-        print(
-            f"Warning: Could not reliably determine data directory from probing_datasets_MASTER.csv location. Assuming data files are in '{data_dir}'"
-        )
-    else:
-        data_dir = os.path.dirname(
-            master_csv_path
-        )  # Directory containing the master CSV
-        # dataset_save_name might be like "binary_classification_datasets/1_ai_news.csv"
-        # so we join data_dir with it.
-
-    full_dataset_path = os.path.join(data_dir, dataset_save_name)
+    # dataset_save_name is relative to the directory of probing_datasets_MASTER.csv
+    # e.g., "binary_classification_datasets/1_ai_news.csv"
+    full_dataset_path = os.path.join(master_csv_location_dir, dataset_save_name)
 
     try:
         return pd.read_csv(full_dataset_path)
     except FileNotFoundError:
-        raise FileNotFoundError(
-            f"Dataset file {dataset_save_name} (path: {full_dataset_path}) not found."
-        )
+        # Fallback attempt if running from project root
+        alt_full_dataset_path = os.path.join("sae_probes", "data", dataset_save_name)
+        try:
+            return pd.read_csv(alt_full_dataset_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Dataset file {dataset_save_name} not found. Searched in '{full_dataset_path}' and '{alt_full_dataset_path}'."
+            )
 
 
 def read_numbered_dataset_df(numbered_dataset_tag: str) -> pd.DataFrame:
@@ -257,17 +246,22 @@ def get_corrupt_frac() -> list[float]:
 
 def get_OOD_datasets(translation: bool = True) -> list[str]:
     # This should return list of dataset_names (e.g. "66_living-room")
-    # The paths like "data/OOD data/*.csv" need to be robust.
-    base_data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "OOD data")
+    # Assumes OOD data is in a directory 'OOD data' within the 'data' directory
+    # that is a sibling to this utils_data.py file (i.e., sae_probes/data/OOD data).
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    # Path relative to this file: ./data/OOD data
+    base_data_dir = os.path.join(current_file_dir, "data", "OOD data")
+
     if not os.path.isdir(base_data_dir):
-        base_data_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "data", "OOD data"
-        )  # Try one level higher for tests
-    if not os.path.isdir(base_data_dir):
-        print(
-            f"Warning: OOD data directory not found at {base_data_dir}. Returning empty list."
-        )
-        return []
+        # Fallback: try assuming 'sae_probes/data/OOD data' relative to CWD (e.g. project root)
+        alt_base_data_dir = os.path.join("sae_probes", "data", "OOD data")
+        if os.path.isdir(alt_base_data_dir):
+            base_data_dir = alt_base_data_dir
+        else:
+            print(
+                f"Warning: OOD data directory not found. Tried primary: '{base_data_dir}' and alt: '{alt_base_data_dir}'. Returning empty list."
+            )
+            return []
 
     dataset_files = glob.glob(os.path.join(base_data_dir, "*.csv"))
 
