@@ -1,10 +1,10 @@
-from joblib import Parallel, delayed
-import pandas as pd
+import glob
+import os
+
 import numpy as np
-from tqdm import tqdm
+import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
-import os, glob
 
 try:
     from IPython import get_ipython  # type: ignore
@@ -269,10 +269,10 @@ def get_OOD_traintest(dataset, model_name="gemma-2-9b", layer=20):
 
 def get_xy_glue(toget="ensemble"):
     X = torch.load(
-        f"data/dataset_investigate/87_glue_cola_blocks.20.hook_resid_post.pt",
+        "data/dataset_investigate/87_glue_cola_blocks.20.hook_resid_post.pt",
         weights_only=False,
     )
-    df = pd.read_csv(f"results/investigate/87_glue_cola_investigate.csv")
+    df = pd.read_csv("results/investigate/87_glue_cola_investigate.csv")
     le = LabelEncoder()
     y = le.fit_transform(df[toget].values)
     return X, y

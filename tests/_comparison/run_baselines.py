@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from utils_data import (
+from .utils_data import (
     corrupt_ytrain,
     get_class_imbalance,
     get_classimabalance_num_train,
@@ -21,8 +21,8 @@ from utils_data import (
     get_xy_traintest,
     get_xy_traintest_specify,
 )
-from utils_sae import get_xy_glue_sae, get_xy_OOD_sae
-from utils_training import (
+from .utils_sae import get_xy_glue_sae, get_xy_OOD_sae
+from .utils_training import (
     find_best_knn,
     find_best_mlp,
     find_best_pcareg,
