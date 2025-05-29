@@ -251,24 +251,37 @@ def find_best_knn(
     X_test_scaled = scaler.transform(X_test)
 
     # Determine the range of k values to try
-    max_k = min(20, len(X_train) - 1)
-    if max_k < 1:
-        # Not enough samples for KNN
+    cv = get_cv(X_train)
+    splits = get_splits(cv, X_train, y_train)
+
+    if not splits:
+        # Handle case with no valid CV splits (e.g., too few samples of a class)
+        # Return default metrics indicating an issue or inability to train/evaluate
         return {
-            "test_f1": 0,
-            "test_acc": 0,
-            "test_auc": 0.5,
-            "val_auc": 0.5,  # Or some other default/error indicator
+            "test_f1": 0.0,
+            "test_acc": 0.0,
+            "test_auc": 0.5,  # Neutral AUC
+            "val_auc": 0.5,  # Neutral AUC for validation
+            "best_k": 1,  # Default k
         }
 
-    k_values = list(range(1, max_k + 1, 2))  # Try odd k values up to max_k
+    # Determine the maximum k based on the smallest training fold size
+    min_train_fold_size = min(len(train_idx) for train_idx, _ in splits)
+    max_k = min(10, min_train_fold_size)  # n_neighbors <= n_samples_fit
+    if (
+        max_k == 0
+    ):  # If the smallest fold is 0, this means no valid splits, handled above, but defensive.
+        max_k = 1
+
+    k_values = range(1, max_k + 1)  # Iterate up to max_k inclusive
+    if not k_values:  # If max_k is 0 or 1, range might be empty or just [1]
+        k_values = [1]  # Default to k=1 if range is empty
 
     best_score = -float("inf")
     best_model = None
     best_k = None
     metrics = {}
     if X_combined_scaled.shape[0] > 3:
-        cv = get_cv(X_train)
         scores = []
 
         def evaluate_fold(k, train_index, val_index):

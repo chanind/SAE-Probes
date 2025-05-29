@@ -17,7 +17,6 @@ build/
 .coverage
 
 # Data and Results (runtime generated)
-data/
 results/
 
 # IDEs and editors

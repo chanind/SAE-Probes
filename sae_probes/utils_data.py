@@ -373,22 +373,22 @@ def _generate_activations_from_prompts(
 
     if hook_point_name is None:
         hook_point = f"blocks.{layer_idx}.hook_resid_pre"
-        if hook_point not in [name for name, _ in model.hook_points()]:
+        if hook_point not in [hp.name for hp in model.hook_points()]:
             alt_hook_point = f"blocks.{layer_idx}.hook_resid_post"
-            if alt_hook_point in [name for name, _ in model.hook_points()]:
+            if alt_hook_point in [hp.name for hp in model.hook_points()]:
                 print(
                     f"Warning: Default hook point {hook_point} not found. Using {alt_hook_point} instead."
                 )
                 hook_point = alt_hook_point
             else:
                 raise ValueError(
-                    f"Default hook point '{hook_point}' (and fallback '{alt_hook_point}') not found in model. Please provide a valid 'hook_point_name'. Available: {[n for n, _ in model.hook_points()]}"
+                    f"Default hook point '{hook_point}' (and fallback '{alt_hook_point}') not found in model. Please provide a valid 'hook_point_name'. Available: {[hp.name for hp in model.hook_points()]}"
                 )
     else:
         hook_point = hook_point_name
-        if hook_point not in [name for name, _ in model.hook_points()]:
+        if hook_point not in [hp.name for hp in model.hook_points()]:
             raise ValueError(
-                f"Provided hook point '{hook_point}' not found in model. Available: {[n for n, _ in model.hook_points()]}"
+                f"Invalid hook_point: {hook_point}. Valid hook points are: {[hp.name for hp in model.hook_points()]}"
             )
 
     for i in range(0, len(prompts), batch_size):
