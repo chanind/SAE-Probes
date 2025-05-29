@@ -9,7 +9,6 @@ from sklearn.model_selection import LeavePOut, RandomizedSearchCV, StratifiedKFo
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
-from utils_data import get_xy_traintest
 
 try:
     from IPython import get_ipython  # type: ignore
@@ -458,27 +457,37 @@ def find_best_mlp(
 
 
 # example usage
-if __name__ == "__main__":
-    # Example usage for testing find_best_reg
-    X_train, y_train, X_test, y_test = get_xy_traintest(
-        100, "10_financial_transactions", 9, model_name="gemma-2-9b"
-    )  # replace with actual data
-    # test it here
-    metrics_reg = find_best_reg(X_train, y_train, X_test, y_test, plot=True)
-    print(f"Regression Metrics: {metrics_reg}")
+# if __name__ == "__main__":
+#     # Example usage for testing find_best_reg
+#     # Need to load a model first to use get_model_activations_for_dataset
+#     # from transformer_lens import HookedTransformer
+#     # model = HookedTransformer.from_pretrained("gpt2-small", device="cpu")
+#     # model.cfg.model_name = "gpt2-small" # Ensure model_name is set
+#
+#     # X_train, y_train, X_test, y_test = get_model_activations_for_dataset(
+#     #     model=model,
+#     #     dataset_name="10_financial_transactions", # This is a numbered_dataset_tag, ensure function handles it or use Dataset Tag
+#     #     layer_idx=9,
+#     #     device="cpu",
+#     #     # num_train_samples_target=100 # get_model_activations_for_dataset uses this for scarcity
+#     # )
+#     pass # Commenting out for now as it needs a loaded model.
+#
+#     # metrics_reg = find_best_reg(X_train, y_train, X_test, y_test, plot=True)
+#     # print(f"Regression Metrics: {metrics_reg}")
 
-    # Example usage for testing find_best_pcareg
-    metrics_pcareg = find_best_pcareg(X_train, y_train, X_test, y_test, plot=True)
-    print(f"PCA + Regression Metrics: {metrics_pcareg}")
+#     # Example usage for testing find_best_pcareg
+#     # metrics_pcareg = find_best_pcareg(X_train, y_train, X_test, y_test, plot=True)
+#     # print(f"PCA + Regression Metrics: {metrics_pcareg}")
 
-    # Example usage for testing find_best_knn
-    metrics_knn = find_best_knn(X_train, y_train, X_test, y_test, plot=True)
-    print(f"KNN Metrics: {metrics_knn}")
+#     # Example usage for testing find_best_knn
+#     # metrics_knn = find_best_knn(X_train, y_train, X_test, y_test, plot=True)
+#     # print(f"KNN Metrics: {metrics_knn}")
 
-    # Example usage for testing find_best_xgboost
-    metrics_xgboost = find_best_xgboost(X_train, y_train, X_test, y_test, plot=True)
-    print(f"XGBoost Metrics: {metrics_xgboost}")
+#     # Example usage for testing find_best_xgboost
+#     # metrics_xgboost = find_best_xgboost(X_train, y_train, X_test, y_test, plot=True)
+#     # print(f"XGBoost Metrics: {metrics_xgboost}")
 
-    # Example usage for testing find_best_mlp
-    metrics_mlp = find_best_mlp(X_train, y_train, X_test, y_test, plot=True)
-    print(f"MLP Metrics: {metrics_mlp}")
+#     # Example usage for testing find_best_mlp
+#     # metrics_mlp = find_best_mlp(X_train, y_train, X_test, y_test, plot=True)
+#     # print(f"MLP Metrics: {metrics_mlp}")
