@@ -5,7 +5,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from sae_probes.constants import DEFAULT_CACHE_PATH, DEFAULT_RESULTS_PATH
+from sae_probes.constants import (
+    DEFAULT_MODEL_CACHE_PATH,
+    DEFAULT_RESULTS_PATH,
+    DEFAULT_SAE_CACHE_PATH,
+)
 
 from .utils_data import (
     corrupt_ytrain,
@@ -130,7 +134,7 @@ def run_baseline_scarcity(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     savepath = (
         Path(results_path)
@@ -144,7 +148,11 @@ def run_baseline_scarcity(
         # we dont have enough test examples
         return
     X_train, y_train, X_test, y_test = get_xy_traintest(
-        num_train, numbered_dataset, layer, model_name=model_name, cache_path=cache_path
+        num_train,
+        numbered_dataset,
+        layer,
+        model_name=model_name,
+        model_cache_path=model_cache_path,
     )
     # Run method and get metrics
     method = methods[method_name]
@@ -161,9 +169,11 @@ def run_all_baseline_scarcity(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    shuffled_datasets = get_datasets(model_name, cache_path=cache_path).copy()
+    shuffled_datasets = get_datasets(
+        model_name, model_cache_path=model_cache_path
+    ).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
     for method_name in methods.keys():
@@ -176,7 +186,7 @@ def run_all_baseline_scarcity(
                     model_name=model_name,
                     layer=layer,
                     results_path=results_path,
-                    cache_path=cache_path,
+                    model_cache_path=model_cache_path,
                 )
 
 
@@ -240,7 +250,7 @@ def run_baseline_class_imbalance(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 < dataset_frac < 1
     dataset_frac = round(dataset_frac * 20) / 20
@@ -259,7 +269,7 @@ def run_baseline_class_imbalance(
         pos_ratio=dataset_frac,
         model_name=model_name,
         num_test=num_test,
-        cache_path=cache_path,
+        model_cache_path=model_cache_path,
     )
     # Run method and get metrics
     method = methods[method_name]
@@ -281,9 +291,11 @@ def run_all_baseline_class_imbalance(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    shuffled_datasets = get_datasets(model_name, cache_path=cache_path).copy()
+    shuffled_datasets = get_datasets(
+        model_name, model_cache_path=model_cache_path
+    ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
     i = 0
@@ -297,7 +309,7 @@ def run_all_baseline_class_imbalance(
                     model_name=model_name,
                     layer=layer,
                     results_path=results_path,
-                    cache_path=cache_path,
+                    model_cache_path=model_cache_path,
                 )
 
 
@@ -359,7 +371,7 @@ def run_baseline_corrupt(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 <= corrupt_frac <= 0.5
     corrupt_frac = round(corrupt_frac * 20) / 20
@@ -373,7 +385,11 @@ def run_baseline_corrupt(
     size = dataset_sizes[numbered_dataset]
     num_train = min(size - 100, 1024)
     X_train, y_train, X_test, y_test = get_xy_traintest(
-        num_train, numbered_dataset, layer, model_name=model_name, cache_path=cache_path
+        num_train,
+        numbered_dataset,
+        layer,
+        model_name=model_name,
+        model_cache_path=model_cache_path,
     )
     y_train = corrupt_ytrain(y_train, corrupt_frac)
     # Run method and get metrics
@@ -396,9 +412,11 @@ def run_all_baseline_corrupt(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    shuffled_datasets = get_datasets(model_name, cache_path=cache_path).copy()
+    shuffled_datasets = get_datasets(
+        model_name, model_cache_path=model_cache_path
+    ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_corrupt_frac()
     for method_name in ["logreg"]:
@@ -411,7 +429,7 @@ def run_all_baseline_corrupt(
                     model_name=model_name,
                     layer=layer,
                     results_path=results_path,
-                    cache_path=cache_path,
+                    model_cache_path=model_cache_path,
                 )
 
 
@@ -473,7 +491,8 @@ def run_datasets_OOD(
     layer: int,
     translation: bool,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     # runs the baseline and sae probes for OOD generalization
     # trains on normal data but tests on the OOD activations
@@ -488,7 +507,7 @@ def run_datasets_OOD(
             dataset=dataset,
             model_name=model_name,
             layer=layer,
-            cache_path=cache_path,
+            model_cache_path=model_cache_path,
         )
         metrics = find_best_reg(
             X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, penalty="l2"
@@ -499,7 +518,7 @@ def run_datasets_OOD(
                 dataset,
                 model_name=model_name,
                 layer=layer,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
             )
             metrics_sae = find_best_reg(
                 X_train=X_train_sae,
@@ -527,7 +546,7 @@ def ood_pruning(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     # does OOD Pruning
     # We use o1 to rank the latents by usefulness to the task via auto-interp explanations,
@@ -546,7 +565,7 @@ def ood_pruning(
         layer=layer,
         return_indices=True,
         num_train=1500,
-        cache_path=cache_path,
+        sae_cache_path=sae_cache_path,
     )
 
     results = []
@@ -583,24 +602,3 @@ def ood_pruning(
         / f"sae_probes_{model_name}/OOD/OOD_latents/{dataset}/{dataset}_pruned.csv",
         index=False,
     )
-
-
-if __name__ == "__main__":
-    """
-    Note: we do not recommend you run the functions like this.
-    Each run_all file can be run in parallel instances using a 
-    bash script to considerably speed up the runs.
-    """
-    run_all_baseline_normal("gemma-2-9b", layers=[10, 15, 20, 25])
-    coalesce_all_baseline_normal(model_name="gemma-2-9b", layers=[10, 15, 20, 25])
-
-    run_all_baseline_scarcity(model_name="gemma-2-9b", layer=20)
-    coalesce_all_scarcity(model_name="gemma-2-9b", layer=20)
-
-    run_all_baseline_class_imbalance(model_name="gemma-2-9b", layer=20)
-    coalesce_all_imbalance(model_name="gemma-2-9b", layer=20)
-
-    run_all_baseline_corrupt(model_name="gemma-2-9b", layer=20)
-    coalesce_all_corrupt(model_name="gemma-2-9b", layer=20)
-
-    run_datasets_OOD("gemma-2-9b", runsae=True, layer=20, translation=False)

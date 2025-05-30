@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from sae_probes.constants import DEFAULT_CACHE_PATH
+from sae_probes.constants import DEFAULT_SAE_CACHE_PATH
 from sae_probes.utils_data import get_xy_OOD, get_xyvals
 
 
@@ -14,13 +14,13 @@ def get_xy_OOD_sae(
     k: int = 128,
     return_indices: bool = False,
     num_train: int = 1024,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     _, y_test = get_xy_OOD(dataset, model_name, layer)
     _, y_train = get_xyvals(dataset, layer=layer, model_name=model_name, MAX_AMT=1500)
     X_test = (
         torch.load(
-            Path(cache_path) / f"sae_activations_{model_name}_OOD/{dataset}_OOD.pt",
+            Path(sae_cache_path) / f"sae_activations_{model_name}_OOD/{dataset}_OOD.pt",
             weights_only=False,
         )
         .to_dense()
@@ -28,7 +28,7 @@ def get_xy_OOD_sae(
     )
     X_train = (
         torch.load(
-            Path(cache_path) / f"sae_activations_{model_name}/{dataset}.pt",
+            Path(sae_cache_path) / f"sae_activations_{model_name}/{dataset}.pt",
             weights_only=True,
         )
         .to_dense()

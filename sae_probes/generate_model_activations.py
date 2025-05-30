@@ -1,4 +1,3 @@
-import argparse
 import glob
 import os
 import random
@@ -9,21 +8,21 @@ import torch
 from tqdm import tqdm
 from transformer_lens import HookedTransformer
 
-from sae_probes.constants import DATA_PATH, DEFAULT_CACHE_PATH
-
-torch.set_grad_enabled(False)
+from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
 
 
+@torch.inference_mode()
 def generate_dataset_activations(
     model_name: str,
     layers: list[int],
     device: str = "cuda",
     max_seq_len: int = 1024,
     OOD: bool = False,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     os.makedirs(
-        Path(cache_path) / f"model_activations_{model_name}{'_OOD' if OOD else ''}",
+        Path(model_cache_path)
+        / f"model_activations_{model_name}{'_OOD' if OOD else ''}",
         exist_ok=True,
     )
 
@@ -54,7 +53,7 @@ def generate_dataset_activations(
             continue
         dataset_short_name = dataset_name.split("/")[-1].split(".")[0]
         file_names = [
-            Path(cache_path)
+            Path(model_cache_path)
             / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
             / f"{dataset_short_name}_{hook_name}.pt"
             for hook_name in hook_names
@@ -104,8 +103,10 @@ def generate_dataset_activations(
                 return_tensors="pt",
             )  # type: ignore
             batch = batch.to(device)
-            logits, cache = model.run_with_cache(
-                batch["input_ids"], names_filter=hook_names
+            _, cache = model.run_with_cache(
+                batch["input_ids"],
+                names_filter=hook_names,
+                stop_at_layer=max(layers) + 1,
             )
             for j, length in enumerate(batch_lengths):
                 for hook_name in hook_names:
@@ -124,27 +125,3 @@ def generate_dataset_activations(
         for hook_name, file_name in zip(hook_names, file_names):
             all_activations[hook_name] = torch.cat(all_activations[hook_name])  # type: ignore
             torch.save(all_activations[hook_name], file_name)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, default=None)
-    parser.add_argument("--device", type=str, default="cuda:0")
-    parser.add_argument("--max_seq_len", type=int, default=1024)
-    parser.add_argument("--OOD", action="store_true")
-    args = parser.parse_args()
-
-    if args.model_name:
-        # Run for a single model
-        generate_dataset_activations(
-            args.model_name, args.device, args.max_seq_len, args.OOD
-        )
-    else:
-        # Run for all models
-        model_names = ["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"]
-        for model_name in model_names:
-            print(f"Processing model: {model_name}")
-            generate_dataset_activations(
-                model_name, args.device, args.max_seq_len, args.OOD
-            )
-# %%

@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
 
-from sae_probes.constants import DATA_PATH, DEFAULT_CACHE_PATH
+from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
 
 
 # DATA UTILS
@@ -53,16 +53,16 @@ def get_xvals(
     numbered_dataset_tag: str,
     layer: int,
     model_name: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     if layer == "embed":
         fname = (
-            Path(cache_path)
+            Path(model_cache_path)
             / f"model_activations_{model_name}/{numbered_dataset_tag}_hook_embed.pt"
         )
     else:
         fname = (
-            Path(cache_path)
+            Path(model_cache_path)
             / f"model_activations_{model_name}/{numbered_dataset_tag}_blocks.{layer}.hook_resid_post.pt"
         )
     activations = torch.load(fname, weights_only=False)
@@ -74,10 +74,10 @@ def get_xyvals(
     numbered_dataset_tag: str,
     layer: int,
     model_name: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     MAX_AMT: int = 1500,
 ):
-    xvals = get_xvals(numbered_dataset_tag, layer, model_name, cache_path)
+    xvals = get_xvals(numbered_dataset_tag, layer, model_name, model_cache_path)
     yvals = get_yvals(numbered_dataset_tag)
     # Return only up to MAX_AMT samples
     xvals = xvals[:MAX_AMT]
@@ -129,10 +129,14 @@ def get_xy_traintest_specify(
     MAX_AMT: int = 5000,
     seed: int = 42,
     num_test: int | None = None,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X, y = get_xyvals(
-        numbered_dataset_tag, layer, model_name, MAX_AMT=MAX_AMT, cache_path=cache_path
+        numbered_dataset_tag,
+        layer,
+        model_name,
+        MAX_AMT=MAX_AMT,
+        model_cache_path=model_cache_path,
     )
     if num_test is None:
         num_test = X.shape[0] - num_train - 1
@@ -157,7 +161,7 @@ def get_xy_traintest(
     model_name: str,
     MAX_AMT: int = 5000,
     seed: int = 42,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
@@ -167,7 +171,7 @@ def get_xy_traintest(
         pos_ratio=0.5,
         MAX_AMT=MAX_AMT,
         seed=seed,
-        cache_path=cache_path,
+        model_cache_path=model_cache_path,
     )
     return X_train, y_train, X_test, y_test
 
@@ -263,10 +267,10 @@ def get_xy_OOD(
     dataset: str,
     model_name: str,
     layer: int = 20,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X = torch.load(
-        Path(cache_path)
+        Path(model_cache_path)
         / f"model_activations_{model_name}_OOD/{dataset}_OOD_blocks.{layer}.hook_resid_post.pt",
         weights_only=False,
     )
@@ -280,7 +284,7 @@ def get_OOD_traintest(
     dataset: str,
     model_name: str,
     layer: int = 20,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X_train, y_train, _, _ = get_xy_traintest_specify(
         num_train=1024,
@@ -290,16 +294,18 @@ def get_OOD_traintest(
         MAX_AMT=1500,
         pos_ratio=0.5,
         num_test=0,
-        cache_path=cache_path,
+        model_cache_path=model_cache_path,
     )
-    X_test, y_test = get_xy_OOD(dataset, model_name, layer, cache_path)
+    X_test, y_test = get_xy_OOD(dataset, model_name, layer, model_cache_path)
     return X_train, y_train, X_test, y_test
 
 
-def get_datasets(model_name: str, cache_path: str | Path = DEFAULT_CACHE_PATH):
+def get_datasets(
+    model_name: str, model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH
+):
     # Get all files in the directory
     dataset_sizes = get_dataset_sizes()
-    files = os.listdir(str(Path(cache_path) / f"model_activations_{model_name}"))
+    files = os.listdir(str(Path(model_cache_path) / f"model_activations_{model_name}"))
 
     # Filter for files containing 'blocks'
     block_files = [f for f in files if "blocks" in f]

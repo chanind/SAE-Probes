@@ -7,7 +7,7 @@ import torch
 from sae_lens import SAE
 from sklearn.exceptions import ConvergenceWarning
 
-from sae_probes.constants import DEFAULT_CACHE_PATH
+from sae_probes.constants import DEFAULT_MODEL_CACHE_PATH, DEFAULT_SAE_CACHE_PATH
 from sae_probes.utils_data import (
     get_class_imbalance,
     get_classimabalance_num_train,
@@ -45,14 +45,16 @@ def get_sae_paths_normal(
     layer: int,
     reg_type: str,
     binarize: bool = False,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     """Get paths for normal setting"""
     os.makedirs(
-        Path(cache_path) / f"sae_probes_{model_name}/normal_setting", exist_ok=True
+        Path(sae_cache_path) / f"sae_probes_{model_name}/normal_setting",
+        exist_ok=True,
     )
     os.makedirs(
-        Path(cache_path) / f"sae_activations_{model_name}/normal_setting", exist_ok=True
+        Path(sae_cache_path) / f"sae_activations_{model_name}/normal_setting",
+        exist_ok=True,
     )
 
     description_string = f"{dataset}_{layer}"
@@ -61,23 +63,23 @@ def get_sae_paths_normal(
         reg_type += "_binarized"
 
     save_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_probes_{model_name}/normal_setting/{description_string}_{reg_type}.pkl"
     )
     train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/normal_setting/{description_string}_X_train_sae.pt"
     )
     test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/normal_setting/{description_string}_X_test_sae.pt"
     )
     y_train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/normal_setting/{description_string}_y_train.pt"
     )
     y_test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/normal_setting/{description_string}_y_test.pt"
     )
     return {
@@ -89,6 +91,7 @@ def get_sae_paths_normal(
     }
 
 
+@torch.inference_mode()
 def save_with_sae_normal(
     sae: SAE,
     layer: int,
@@ -96,7 +99,8 @@ def save_with_sae_normal(
     device: str,
     reg_type: str,
     binarize: bool,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     """Generate and save SAE activations for normal setting"""
     for dataset in datasets:
@@ -106,7 +110,7 @@ def save_with_sae_normal(
             reg_type=reg_type,
             binarize=binarize,
             model_name=model_name,
-            cache_path=cache_path,
+            sae_cache_path=sae_cache_path,
         )
         train_path, test_path, y_train_path, y_test_path = (
             paths["train_path"],
@@ -129,7 +133,11 @@ def save_with_sae_normal(
         size = dataset_sizes[dataset]
         num_train = min(size - 100, 1024)
         X_train, y_train, X_test, y_test = get_xy_traintest(
-            num_train, dataset, layer, model_name=model_name
+            num_train,
+            dataset,
+            layer,
+            model_name=model_name,
+            model_cache_path=model_cache_path,
         )
 
         batch_size = 128
@@ -158,37 +166,38 @@ def get_sae_paths_scarcity(
     reg_type: str,
     num_train: int,
     model_name: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     """Get paths for data scarcity setting"""
     os.makedirs(
-        Path(cache_path) / f"sae_probes_{model_name}/scarcity_setting", exist_ok=True
+        Path(sae_cache_path) / f"sae_probes_{model_name}/scarcity_setting",
+        exist_ok=True,
     )
     os.makedirs(
-        Path(cache_path) / f"sae_activations_{model_name}/scarcity_setting",
+        Path(sae_cache_path) / f"sae_activations_{model_name}/scarcity_setting",
         exist_ok=True,
     )
 
     description_string = f"{dataset}_{layer}"
 
     save_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_probes_{model_name}/scarcity_setting/{description_string}_{reg_type}_{num_train}.pkl"
     )
     train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_X_train_sae.pt"
     )
     test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_X_test_sae.pt"
     )
     y_train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_y_train.pt"
     )
     y_test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/scarcity_setting/{description_string}_{num_train}_y_test.pt"
     )
 
@@ -204,13 +213,15 @@ def get_sae_paths_scarcity(
     }
 
 
+@torch.inference_mode()
 def save_with_sae_scarcity(
     sae: SAE,
     layer: int,
     model_name: str,
     device: str,
     reg_type: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     """Generate and save SAE activations for data scarcity setting"""
     train_sizes = get_training_sizes()
@@ -226,7 +237,7 @@ def save_with_sae_scarcity(
                 reg_type=reg_type,
                 num_train=num_train,
                 model_name=model_name,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
             )
             train_path, test_path, y_train_path, y_test_path = (
                 paths["train_path"],
@@ -242,7 +253,11 @@ def save_with_sae_scarcity(
                 continue
 
             X_train, y_train, X_test, y_test = get_xy_traintest(
-                num_train, dataset, layer, model_name=model_name
+                num_train,
+                dataset,
+                layer,
+                model_name=model_name,
+                model_cache_path=model_cache_path,
             )
 
             batch_size = 128
@@ -271,37 +286,38 @@ def get_sae_paths_imbalance(
     reg_type: str,
     frac: float,
     model_name: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     """Get paths for class imbalance setting"""
     os.makedirs(
-        Path(cache_path) / f"sae_probes_{model_name}/class_imbalance", exist_ok=True
+        Path(sae_cache_path) / f"sae_probes_{model_name}/class_imbalance",
+        exist_ok=True,
     )
     os.makedirs(
-        Path(cache_path) / f"sae_activations_{model_name}/class_imbalance",
+        Path(sae_cache_path) / f"sae_activations_{model_name}/class_imbalance",
         exist_ok=True,
     )
 
     description_string = f"{dataset}_{layer}"
 
     save_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_probes_{model_name}/class_imbalance/{description_string}_{reg_type}_frac{frac}.pkl"
     )
     train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_train_sae.pt"
     )
     test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_X_test_sae.pt"
     )
     y_train_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_train.pt"
     )
     y_test_path = (
-        Path(cache_path)
+        Path(sae_cache_path)
         / f"sae_activations_{model_name}/class_imbalance/{description_string}_frac{frac}_y_test.pt"
     )
     return {
@@ -313,13 +329,15 @@ def get_sae_paths_imbalance(
     }
 
 
+@torch.inference_mode()
 def save_with_sae_imbalance(
     sae: SAE,
     layer: int,
     model_name: str,
     device: str,
     reg_type: str,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     """Generate and save SAE activations for class imbalance setting"""
     fracs = get_class_imbalance()
@@ -332,7 +350,7 @@ def save_with_sae_imbalance(
                 reg_type=reg_type,
                 frac=frac,
                 model_name=model_name,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
             )
             train_path, test_path, y_train_path, y_test_path = (
                 paths["train_path"],
@@ -352,7 +370,7 @@ def save_with_sae_imbalance(
                 pos_ratio=frac,
                 model_name=model_name,
                 num_test=num_test,
-                cache_path=cache_path,
+                model_cache_path=model_cache_path,
             )
 
             batch_size = 128
@@ -375,15 +393,17 @@ def save_with_sae_imbalance(
 
 
 # Process SAEs for a specific model and setting
+@torch.inference_mode()
 def process_model_setting(
     sae: SAE,
     model_name: str,
     layer: int,
-    setting: Literal["normal", "scarcity", "imbalance", "noise", "consolidated"],
+    setting: Literal["normal", "scarcity", "imbalance"],
     device: str,
     reg_type: str,
     binarize: bool,
-    cache_path: str | Path = DEFAULT_CACHE_PATH,
+    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     print(f"Running SAE activation generation for {model_name} in {setting} setting")
 
@@ -399,7 +419,7 @@ def process_model_setting(
                 reg_type=reg_type,
                 binarize=binarize,
                 model_name=model_name,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
             )
             if not all(
                 os.path.exists(p)
@@ -423,7 +443,8 @@ def process_model_setting(
                 device=device,
                 reg_type=reg_type,
                 binarize=binarize,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
+                model_cache_path=model_cache_path,
             )
 
     elif setting == "scarcity":
@@ -439,7 +460,7 @@ def process_model_setting(
                     reg_type=reg_type,
                     num_train=num_train,
                     model_name=model_name,
-                    cache_path=cache_path,
+                    sae_cache_path=sae_cache_path,
                 )
                 if not all(
                     os.path.exists(p)
@@ -464,7 +485,8 @@ def process_model_setting(
                 model_name=model_name,
                 device=device,
                 reg_type=reg_type,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
+                model_cache_path=model_cache_path,
             )
 
     elif setting == "imbalance":
@@ -478,7 +500,7 @@ def process_model_setting(
                     reg_type=reg_type,
                     frac=frac,
                     model_name=model_name,
-                    cache_path=cache_path,
+                    sae_cache_path=sae_cache_path,
                 )
                 if not all(
                     os.path.exists(p)
@@ -503,5 +525,8 @@ def process_model_setting(
                 model_name=model_name,
                 device=device,
                 reg_type=reg_type,
-                cache_path=cache_path,
+                sae_cache_path=sae_cache_path,
+                model_cache_path=model_cache_path,
             )
+    else:
+        raise ValueError(f"Invalid setting: {setting}")
