@@ -76,7 +76,7 @@ def generate_single_dataset_activations(
     layers: list[int],
     device: str = "cuda",
     max_seq_len: int = 1024,
-    batch_size: int = 16,
+    batch_size: int = 32,
     OOD: bool = False,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
@@ -139,7 +139,7 @@ def generate_dataset_activations(
     layers: list[int],
     device: str = "cuda",
     max_seq_len: int = 1024,
-    batch_size: int = 16,
+    batch_size: int = 32,
     OOD: bool = False,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):

@@ -42,6 +42,18 @@ def test_process_activations_gives_same_results_regardless_of_batch_size(
         device="cpu",
     )
 
+    _, test_act = gpt2_model.run_with_cache(
+        "Hello, world!",
+        names_filter=hook_names,
+        stop_at_layer=5,
+        prepend_bos=False,
+    )
+    assert torch.allclose(
+        activations_batched["blocks.2.hook_resid_post"][0],
+        test_act["blocks.2.hook_resid_post"][0, -1, :],
+        atol=1e-5,
+    )
+
     for batched_acts, unbatched_acts in zip(
         activations_batched.values(), activations_unbatched.values()
     ):
