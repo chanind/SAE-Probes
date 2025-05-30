@@ -1,14 +1,136 @@
 import glob
 import os
-import random
 from pathlib import Path
 
 import pandas as pd
 import torch
 from tqdm import tqdm
 from transformer_lens import HookedTransformer
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
+
+
+def _get_tokenizer(model: HookedTransformer) -> PreTrainedTokenizerBase:
+    tokenizer = model.tokenizer
+    assert tokenizer is not None
+    tokenizer.truncation_side = "left"  # type: ignore
+    tokenizer.padding_side = "right"  # type: ignore
+    return tokenizer
+
+
+def _get_text_lengths(model: HookedTransformer, texts: list[str]) -> list[int]:
+    tokenizer = _get_tokenizer(model)
+    return [len(tokenizer(t)["input_ids"]) for t in texts]  # type: ignore
+
+
+@torch.inference_mode()
+def _process_activations(
+    model: HookedTransformer,
+    texts: list[str],
+    batch_size: int,
+    max_seq_len: int,
+    hook_names: list[str],
+    max_layer: int,
+    device: str,
+) -> dict[str, torch.Tensor]:
+    tokenizer = _get_tokenizer(model)
+    text_lengths = _get_text_lengths(model, texts)
+    all_activations = {hook_name: [] for hook_name in hook_names}
+    bar = tqdm(range(0, len(texts), batch_size))
+    for i in bar:
+        batch_text = texts[i : i + batch_size]
+        batch_lengths = text_lengths[i : i + batch_size]
+        batch = tokenizer(
+            batch_text,
+            padding=True,
+            truncation=True,
+            max_length=max_seq_len,
+            return_tensors="pt",
+        )  # type: ignore
+        batch = batch.to(device)
+        _, cache = model.run_with_cache(
+            batch["input_ids"],
+            names_filter=hook_names,
+            stop_at_layer=max_layer + 1,
+        )
+        for j, length in enumerate(batch_lengths):
+            for hook_name in hook_names:
+                activation_pos = min(length - 1, max_seq_len - 1)
+                all_activations[hook_name].append(
+                    cache[hook_name][j, activation_pos].cpu()
+                )
+        bar.set_description(f"{len(all_activations[hook_name])}")
+
+    return {
+        hook_name: torch.stack(activations)
+        for hook_name, activations in all_activations.items()
+    }
+
+
+@torch.inference_mode()
+def generate_single_dataset_activations(
+    model: HookedTransformer,
+    model_name: str,
+    dataset_name: str,
+    layers: list[int],
+    device: str = "cuda",
+    max_seq_len: int = 1024,
+    batch_size: int = 16,
+    OOD: bool = False,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+):
+    # Define hook names based on model
+    hook_names = [f"blocks.{layer}.hook_resid_post" for layer in layers]
+    dataset = pd.read_csv(dataset_name)
+    if "prompt" not in dataset.columns:
+        return
+    dataset_short_name = dataset_name.split("/")[-1].split(".")[0]
+    file_names = [
+        Path(model_cache_path)
+        / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
+        / f"{dataset_short_name}_{hook_name}.pt"
+        for hook_name in hook_names
+    ]
+    lengths = None
+    if all(os.path.exists(file_name) for file_name in file_names):
+        lengths = [
+            torch.load(file_name, weights_only=True).shape[0]
+            for file_name in file_names
+        ]
+
+    text = dataset["prompt"].tolist()
+    text_lengths = _get_text_lengths(model, text)
+
+    if lengths is not None and all(length == len(text_lengths) for length in lengths):
+        print(
+            f"Skipping {dataset_short_name} because correct length activations already exist"
+        )
+        return
+
+    if lengths is None:
+        print(
+            f"Generating activations for {dataset_short_name} (no existing activations)"
+        )
+    else:
+        print(
+            f"Generating activations for {dataset_short_name} (bad existing activations)"
+        )
+        print(lengths, len(text_lengths))
+
+    all_activations = _process_activations(
+        model=model,
+        texts=text,
+        batch_size=batch_size,
+        max_seq_len=max_seq_len,
+        hook_names=hook_names,
+        max_layer=max(layers),
+        device=device,
+    )
+
+    for hook_name, file_name in zip(hook_names, file_names):
+        file_name.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(all_activations[hook_name], file_name)
 
 
 @torch.inference_mode()
@@ -17,6 +139,7 @@ def generate_dataset_activations(
     layers: list[int],
     device: str = "cuda",
     max_seq_len: int = 1024,
+    batch_size: int = 16,
     OOD: bool = False,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
@@ -29,99 +152,20 @@ def generate_dataset_activations(
     # Load the model
     model = HookedTransformer.from_pretrained(model_name, device=device)
 
-    # Important to ensure correct token is at the correct position, either at the text_length position or at the end of the sequence
-    tokenizer = model.tokenizer
-    tokenizer.truncation_side = "left"  # type: ignore
-    tokenizer.padding_side = "right"  # type: ignore
-
-    # Define hook names based on model
-    hook_names = ["hook_embed"] + [
-        f"blocks.{layer}.hook_resid_post" for layer in layers
-    ]
-
     if OOD:
         dataset_names = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
     else:
         dataset_names = glob.glob(str(DATA_PATH / "cleaned_data" / "*.csv"))
 
-    # Randomize dataset names so multiple GPUs can work on it
-    random.shuffle(dataset_names)
-
     for dataset_name in dataset_names:
-        dataset = pd.read_csv(dataset_name)
-        if "prompt" not in dataset.columns:
-            continue
-        dataset_short_name = dataset_name.split("/")[-1].split(".")[0]
-        file_names = [
-            Path(model_cache_path)
-            / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
-            / f"{dataset_short_name}_{hook_name}.pt"
-            for hook_name in hook_names
-        ]
-        lengths = None
-        if all(os.path.exists(file_name) for file_name in file_names):
-            lengths = [
-                torch.load(file_name, weights_only=True).shape[0]
-                for file_name in file_names
-            ]
-
-        text = dataset["prompt"].tolist()
-
-        text_lengths = []
-        for t in text:
-            text_lengths.append(len(tokenizer(t)["input_ids"]))  # type: ignore
-
-        if lengths is not None and all(
-            length == len(text_lengths) for length in lengths
-        ):
-            print(
-                f"Skipping {dataset_short_name} because correct length activations already exist"
-            )
-            continue
-
-        if lengths is not None:
-            print(
-                f"Generating activations for {dataset_short_name} (bad existing activations)"
-            )
-            print(lengths, len(text_lengths))
-        else:
-            print(
-                f"Generating activations for {dataset_short_name} (no existing activations)"
-            )
-
-        batch_size = 1
-        all_activations = {hook_name: [] for hook_name in hook_names}
-        bar = tqdm(range(0, len(text), batch_size))
-        for i in bar:
-            batch_text = text[i : i + batch_size]
-            batch_lengths = text_lengths[i : i + batch_size]
-            batch = tokenizer(
-                batch_text,
-                padding=True,
-                truncation=True,
-                max_length=max_seq_len,
-                return_tensors="pt",
-            )  # type: ignore
-            batch = batch.to(device)
-            _, cache = model.run_with_cache(
-                batch["input_ids"],
-                names_filter=hook_names,
-                stop_at_layer=max(layers) + 1,
-            )
-            for j, length in enumerate(batch_lengths):
-                for hook_name in hook_names:
-                    activation_pos = min(length - 1, max_seq_len - 1)
-                    all_activations[hook_name].append(
-                        cache[hook_name][:, activation_pos].cpu()
-                    )
-            bar.set_description(f"{len(all_activations[hook_name])}")
-
-        print(
-            i,
-            len(all_activations[hook_name]),
-            len(torch.cat(all_activations[hook_name])),
+        generate_single_dataset_activations(
+            model=model,
+            model_name=model_name,
+            dataset_name=dataset_name,
+            layers=layers,
+            device=device,
+            max_seq_len=max_seq_len,
+            batch_size=batch_size,
+            OOD=OOD,
+            model_cache_path=model_cache_path,
         )
-
-        for hook_name, file_name in zip(hook_names, file_names):
-            all_activations[hook_name] = torch.cat(all_activations[hook_name])  # type: ignore
-            torch.save(all_activations[hook_name], file_name)

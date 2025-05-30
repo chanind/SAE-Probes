@@ -1,0 +1,85 @@
+from pathlib import Path
+
+import torch
+from sae_lens import HookedSAETransformer
+
+from sae_probes.constants import DATA_PATH
+from sae_probes.generate_model_activations import (
+    _get_text_lengths,
+    _process_activations,
+    generate_single_dataset_activations,
+)
+
+
+def test_process_activations_gives_same_results_regardless_of_batch_size(
+    gpt2_model: HookedSAETransformer,
+):
+    texts = [
+        "Hello, world!",
+        "this is some longer text",
+        "short",
+        "he he he 1 2 3 4 5 6 7 8 9 10",
+    ]
+    max_seq_len = 1024
+    hook_names = [f"blocks.{layer}.hook_resid_post" for layer in [2, 3, 4]]
+
+    activations_batched = _process_activations(
+        model=gpt2_model,
+        texts=texts,
+        batch_size=3,
+        max_seq_len=max_seq_len,
+        hook_names=hook_names,
+        max_layer=4,
+        device="cpu",
+    )
+    activations_unbatched = _process_activations(
+        model=gpt2_model,
+        texts=texts,
+        batch_size=1,
+        max_seq_len=max_seq_len,
+        hook_names=hook_names,
+        max_layer=4,
+        device="cpu",
+    )
+
+    for batched_acts, unbatched_acts in zip(
+        activations_batched.values(), activations_unbatched.values()
+    ):
+        assert torch.allclose(batched_acts, unbatched_acts, atol=1e-5)
+
+
+def test_get_text_lengths(gpt2_model: HookedSAETransformer):
+    texts = [
+        "Hello, world!",
+        "this is some longer text",
+        "short",
+        "he he he 1 2 3 4 5 6 7 8 9 10",
+    ]
+    text_lengths = _get_text_lengths(gpt2_model, texts)
+    assert text_lengths == [4, 5, 1, 13]
+
+
+def test_generate_single_dataset_activations(
+    gpt2_model: HookedSAETransformer, tmp_path: Path
+):
+    # this is relatively small dataset, so it's fine to run this fully on CPU in CI
+    generate_single_dataset_activations(
+        model=gpt2_model,
+        model_name="gpt2",
+        dataset_name=str(DATA_PATH / "cleaned_data" / "119_us_state_TX.csv"),
+        layers=[1, 2],
+        model_cache_path=tmp_path,
+        device="cpu",
+    )
+    for layer in [1, 2]:
+        assert (
+            tmp_path
+            / "model_activations_gpt2"
+            / f"119_us_state_TX_blocks.{layer}.hook_resid_post.pt"
+        ).exists()
+        acts = torch.load(
+            tmp_path
+            / "model_activations_gpt2"
+            / f"119_us_state_TX_blocks.{layer}.hook_resid_post.pt"
+        )
+        assert acts.shape == (1000, 768)
