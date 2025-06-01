@@ -28,7 +28,7 @@ build-backend = "poetry.core.masonry.api"
 profile = "black"
 
 [tool.ruff]
-exclude = ["dist", "docs", "*.ipynb"]
+exclude = ["dist", "docs", "*.ipynb", "tests/_comparison"]
 
 [tool.ruff.lint]
 ignore = ["E203", "E501", "E731"]
