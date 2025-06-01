@@ -150,7 +150,7 @@ def generate_dataset_activations(
     )
 
     # Load the model
-    model = HookedTransformer.from_pretrained(model_name, device=device)
+    model = HookedTransformer.from_pretrained_no_processing(model_name, device=device)
 
     if OOD:
         dataset_paths = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
