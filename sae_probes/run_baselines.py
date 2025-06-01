@@ -45,7 +45,7 @@ METHODS: dict[Method, Callable[[Any, Any, Any, Any], BestClassifierResults]] = {
     "xgboost": find_best_xgboost,
     "mlp": find_best_mlp,
 }
-DEFAULT_METHODS: tuple[Method, ...] = ("logreg", "pca")
+DEFAULT_METHODS: tuple[Method, ...] = ("logreg",)
 
 
 """
