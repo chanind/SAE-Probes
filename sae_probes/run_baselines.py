@@ -95,7 +95,9 @@ def run_all_baseline_normal(
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    shuffled_datasets = get_datasets(model_name).copy()
+    shuffled_datasets = get_datasets(
+        model_name, model_cache_path=model_cache_path
+    ).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in METHODS.keys():
         for dataset in shuffled_datasets:
