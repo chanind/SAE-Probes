@@ -1,7 +1,8 @@
 import os
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import numpy as np
 import pandas as pd
@@ -35,13 +36,15 @@ from .utils_training import (
 
 DATASET_SIZES = get_dataset_sizes()
 DATASETS = get_numbered_binary_tags()
-METHODS: dict[str, Callable[[Any, Any, Any, Any], BestClassifierResults]] = {
+Method = Literal["logreg", "pca", "knn", "xgboost", "mlp"]
+METHODS: dict[Method, Callable[[Any, Any, Any, Any], BestClassifierResults]] = {
     "logreg": find_best_reg,
     "pca": find_best_pcareg,
     "knn": find_best_knn,
     "xgboost": find_best_xgboost,
     "mlp": find_best_mlp,
 }
+DEFAULT_METHODS: tuple[Method, ...] = ("logreg", "pca")
 
 
 """
@@ -94,12 +97,13 @@ def run_all_baseline_normal(
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
         model_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
-    for method_name in METHODS.keys():
+    for method_name in methods:
         for dataset in shuffled_datasets:
             run_baseline_dataset_layer(
                 layer,
@@ -112,32 +116,34 @@ def run_all_baseline_normal(
 
 
 def coalesce_all_baseline_normal(
-    model_name: str, layers: list[int], results_path: str | Path = DEFAULT_RESULTS_PATH
+    model_name: str,
+    layer: int,
+    results_path: str | Path = DEFAULT_RESULTS_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     # takes individual csvs and makes it into one big csv
-    for layer in layers:
-        all_results = []
-        for dataset in DATASETS:
-            for method_name in METHODS.keys():
-                savepath = (
-                    Path(results_path)
-                    / f"baseline_results_{model_name}/normal/allruns/layer{layer}_{dataset}_{method_name}.csv"
-                )
-                if os.path.exists(savepath):
-                    df = pd.read_csv(savepath)
-                    all_results.append(df)
-                else:
-                    print(f"Missing file {layer}, {method_name}, {dataset}")
-                    # raise ValueError(f'Missing file {layer}, {method_name}, {dataset}')
-
-        if all_results:
-            combined_df = pd.concat(all_results, ignore_index=True)
-            layer_savepath = (
+    all_results = []
+    for dataset in DATASETS:
+        for method_name in methods:
+            savepath = (
                 Path(results_path)
-                / f"baseline_probes_{model_name}/normal_settings/layer{layer}_results.csv"
+                / f"baseline_results_{model_name}/normal/allruns/layer{layer}_{dataset}_{method_name}.csv"
             )
-            os.makedirs(os.path.dirname(layer_savepath), exist_ok=True)
-            combined_df.to_csv(layer_savepath, index=False)
+            if os.path.exists(savepath):
+                df = pd.read_csv(savepath)
+                all_results.append(df)
+            else:
+                print(f"Missing file {layer}, {method_name}, {dataset}")
+                # raise ValueError(f'Missing file {layer}, {method_name}, {dataset}')
+
+    if all_results:
+        combined_df = pd.concat(all_results, ignore_index=True)
+        layer_savepath = (
+            Path(results_path)
+            / f"baseline_probes_{model_name}/normal_settings/layer{layer}_results.csv"
+        )
+        os.makedirs(os.path.dirname(layer_savepath), exist_ok=True)
+        combined_df.to_csv(layer_savepath, index=False)
 
 
 """
@@ -191,13 +197,14 @@ def run_all_baseline_scarcity(
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
         model_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
-    for method_name in METHODS.keys():
+    for method_name in methods:
         for train in train_sizes:
             for dataset in shuffled_datasets:
                 run_baseline_scarcity(
@@ -215,6 +222,7 @@ def coalesce_all_scarcity(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     # takes individual csvs and makes it into one big csv
     all_results = []
@@ -231,7 +239,7 @@ def coalesce_all_scarcity(
     for dataset in DATASETS:
         dataset_results = []
         for num_train in train_sizes:
-            for method_name in METHODS.keys():
+            for method_name in methods:
                 savepath = (
                     Path(results_path)
                     / f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{dataset}_{method_name}_numtrain{num_train}.csv"
@@ -316,13 +324,14 @@ def run_all_baseline_class_imbalance(
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
         model_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
-    for method_name in METHODS.keys():
+    for method_name in methods:
         for frac in fracs:
             for dataset in shuffled_datasets:
                 run_baseline_class_imbalance(
@@ -340,6 +349,7 @@ def coalesce_all_imbalance(
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
+    methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     # takes individual csvs and makes it into one big csv
     all_results = []
@@ -355,7 +365,7 @@ def coalesce_all_imbalance(
     for dataset in DATASETS:
         dataset_results = []
         for frac in fracs:
-            for method_name in METHODS.keys():
+            for method_name in methods:
                 frac = round(frac * 20) / 20
                 savepath = (
                     Path(results_path)

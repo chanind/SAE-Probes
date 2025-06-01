@@ -13,11 +13,12 @@ def generate_model_activations(
     model: HookedSAETransformer,
     model_cache_path: Path,
     layers: list[int],
+    dataset_path: Path = TEST_DATASET_PATH,
 ) -> dict[int, Path]:
     generate_single_dataset_activations(
         model=model,
         model_name="gpt2",
-        dataset_path=TEST_DATASET_PATH,
+        dataset_path=dataset_path,
         layers=layers,
         model_cache_path=model_cache_path,
         device="cpu",
