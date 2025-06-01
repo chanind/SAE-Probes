@@ -1,13 +1,14 @@
 # %%
 
+import argparse
 import glob
-import pandas as pd
-from transformer_lens import HookedTransformer
-import torch
-from tqdm import tqdm
 import os
 import random
-import argparse
+
+import pandas as pd
+import torch
+from tqdm import tqdm
+from transformer_lens import HookedTransformer
 
 torch.set_grad_enabled(False)
 

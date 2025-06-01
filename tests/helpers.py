@@ -1,0 +1,30 @@
+from pathlib import Path
+
+from sae_lens import HookedSAETransformer
+
+from sae_probes.constants import DATA_PATH
+from sae_probes.generate_model_activations import generate_single_dataset_activations
+
+TEST_DATASET_NAME = "119_us_state_TX"
+TEST_DATASET_PATH = DATA_PATH / "cleaned_data" / f"{TEST_DATASET_NAME}.csv"
+
+
+def generate_model_activations(
+    model: HookedSAETransformer,
+    model_cache_path: Path,
+    layers: list[int],
+) -> dict[int, Path]:
+    generate_single_dataset_activations(
+        model=model,
+        model_name="gpt2",
+        dataset_path=TEST_DATASET_PATH,
+        layers=layers,
+        model_cache_path=model_cache_path,
+        device="cpu",
+    )
+    return {
+        layer: model_cache_path
+        / "model_activations_gpt2"
+        / f"119_us_state_TX_blocks.{layer}.hook_resid_post.pt"
+        for layer in layers
+    }

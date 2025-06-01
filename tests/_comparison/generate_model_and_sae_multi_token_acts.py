@@ -5,21 +5,23 @@
 # ------------------------------------------------------------------------------------------------
 
 import glob
-import pandas as pd
-from transformer_lens import HookedTransformer
-import torch
-from tqdm import tqdm
 import os
 import random
-from utils_data import (
+import warnings
+
+import pandas as pd
+import torch
+from sklearn.exceptions import ConvergenceWarning
+from tqdm import tqdm
+from transformer_lens import HookedTransformer
+
+from .utils_data import (
     get_dataset_sizes,
     get_numbered_binary_tags,
-    get_yvals,
     get_train_test_indices,
+    get_yvals,
 )
-from utils_sae import load_gemma_2_9b_sae
-import warnings
-from sklearn.exceptions import ConvergenceWarning
+from .utils_sae import load_gemma_2_9b_sae
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 import einops

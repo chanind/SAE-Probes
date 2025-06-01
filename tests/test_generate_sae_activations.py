@@ -1,90 +1,70 @@
 from pathlib import Path
 
+from sae_lens import SAE, HookedSAETransformer
+
 from sae_probes.generate_sae_activations import (
-    get_sae_paths_imbalance,
-    get_sae_paths_normal,
-    get_sae_paths_scarcity,
+    generate_sae_activations_imbalance,
+    generate_sae_activations_normal,
+    generate_sae_activations_scarcity,
 )
+from tests.helpers import TEST_DATASET_NAME, generate_model_activations
 
 
-def test_get_sae_paths_normal():
-    res = get_sae_paths_normal(
+def test_generate_sae_activations_normal(
+    gpt2_model: HookedSAETransformer, tmp_path: Path, gpt2_l4_sae: SAE
+):
+    model_cache_path = tmp_path / "model_cache"
+    generate_model_activations(gpt2_model, model_cache_path, layers=[4])
+    sae_acts = generate_sae_activations_normal(
+        gpt2_l4_sae,
+        dataset=TEST_DATASET_NAME,
+        layer=4,
         model_name="gpt2",
-        dataset="testdata",
-        layer=1,
-        reg_type="l1",
-        sae_cache_path="test_cache",
+        device="cpu",
+        model_cache_path=model_cache_path,
     )
-    assert res == {
-        "save_path": Path(
-            "test_cache/sae_probes_gpt2/normal_setting/testdata_1_l1.pkl"
-        ),
-        "test_path": Path(
-            "test_cache/sae_activations_gpt2/normal_setting/testdata_1_X_test_sae.pt"
-        ),
-        "train_path": Path(
-            "test_cache/sae_activations_gpt2/normal_setting/testdata_1_X_train_sae.pt"
-        ),
-        "y_test_path": Path(
-            "test_cache/sae_activations_gpt2/normal_setting/testdata_1_y_test.pt"
-        ),
-        "y_train_path": Path(
-            "test_cache/sae_activations_gpt2/normal_setting/testdata_1_y_train.pt"
-        ),
-    }
+    assert sae_acts.X_train.shape == (900, 24576)
+    assert sae_acts.y_train.shape == (900,)
+    # this seems odd, why 99 instead of 100??
+    assert sae_acts.X_test.shape == (99, 24576)
+    assert sae_acts.y_test.shape == (99,)
 
 
-def test_get_sae_paths_imbalance():
-    res = get_sae_paths_imbalance(
-        dataset="testdata",
-        layer=1,
-        reg_type="l1",
+def test_generate_sae_activations_imbalance(
+    gpt2_model: HookedSAETransformer, tmp_path: Path, gpt2_l4_sae: SAE
+):
+    model_cache_path = tmp_path / "model_cache"
+    generate_model_activations(gpt2_model, model_cache_path, layers=[4])
+    sae_acts = generate_sae_activations_imbalance(
+        gpt2_l4_sae,
+        dataset=TEST_DATASET_NAME,
+        layer=4,
         frac=0.5,
         model_name="gpt2",
-        sae_cache_path="test_cache",
+        device="cpu",
+        model_cache_path=model_cache_path,
     )
-    assert res == {
-        "save_path": Path(
-            "test_cache/sae_probes_gpt2/class_imbalance/testdata_1_l1_frac0.5.pkl"
-        ),
-        "test_path": Path(
-            "test_cache/sae_activations_gpt2/class_imbalance/testdata_1_frac0.5_X_test_sae.pt"
-        ),
-        "train_path": Path(
-            "test_cache/sae_activations_gpt2/class_imbalance/testdata_1_frac0.5_X_train_sae.pt"
-        ),
-        "y_test_path": Path(
-            "test_cache/sae_activations_gpt2/class_imbalance/testdata_1_frac0.5_y_test.pt"
-        ),
-        "y_train_path": Path(
-            "test_cache/sae_activations_gpt2/class_imbalance/testdata_1_frac0.5_y_train.pt"
-        ),
-    }
+    assert sae_acts.X_train.shape == (426, 24576)
+    assert sae_acts.y_train.shape == (426,)
+    assert sae_acts.X_test.shape == (100, 24576)
+    assert sae_acts.y_test.shape == (100,)
 
 
-def test_get_sae_paths_scarcity():
-    res = get_sae_paths_scarcity(
-        dataset="testdata",
-        layer=1,
-        reg_type="l1",
-        num_train=100,
+def test_generate_sae_activations_scarsity(
+    gpt2_model: HookedSAETransformer, tmp_path: Path, gpt2_l4_sae: SAE
+):
+    model_cache_path = tmp_path / "model_cache"
+    generate_model_activations(gpt2_model, model_cache_path, layers=[4])
+    sae_acts = generate_sae_activations_scarcity(
+        gpt2_l4_sae,
+        dataset=TEST_DATASET_NAME,
+        layer=4,
+        num_train=123,
         model_name="gpt2",
-        sae_cache_path="test_cache",
+        device="cpu",
+        model_cache_path=model_cache_path,
     )
-    assert res == {
-        "save_path": Path(
-            "test_cache/sae_probes_gpt2/scarcity_setting/testdata_1_l1_100.pkl"
-        ),
-        "test_path": Path(
-            "test_cache/sae_activations_gpt2/scarcity_setting/testdata_1_100_X_test_sae.pt"
-        ),
-        "train_path": Path(
-            "test_cache/sae_activations_gpt2/scarcity_setting/testdata_1_100_X_train_sae.pt"
-        ),
-        "y_test_path": Path(
-            "test_cache/sae_activations_gpt2/scarcity_setting/testdata_1_100_y_test.pt"
-        ),
-        "y_train_path": Path(
-            "test_cache/sae_activations_gpt2/scarcity_setting/testdata_1_100_y_train.pt"
-        ),
-    }
+    assert sae_acts.X_train.shape == (123, 24576)
+    assert sae_acts.y_train.shape == (123,)
+    assert sae_acts.X_test.shape == (876, 24576)
+    assert sae_acts.y_test.shape == (876,)

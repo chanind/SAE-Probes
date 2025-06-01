@@ -1,10 +1,10 @@
 # %%
 
+import numpy as np
+import pandas as pd
 import torch
 from sae_lens import SAE
-import pandas as pd
 from tqdm import tqdm
-import numpy as np
 
 torch.set_grad_enabled(False)
 
@@ -21,7 +21,7 @@ targets = torch.tensor(targets, device="cpu")
 # %%
 
 sae = SAE.from_pretrained(
-    release=f"gemma-scope-9b-pt-res",
+    release="gemma-scope-9b-pt-res",
     sae_id=f"layer_{layer}/width_131k/average_l0_114",
     device="cpu",
 )[0].to(device)

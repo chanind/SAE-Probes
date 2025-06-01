@@ -1,12 +1,12 @@
 # %%
 
-import matplotlib.pyplot as plt
-import numpy as np
-import natsort
 import os
 
-os.makedirs("plots", exist_ok=True)
+import matplotlib.pyplot as plt
+import natsort
 import pandas as pd
+
+os.makedirs("plots", exist_ok=True)
 
 unique_widths = ["16k", "131k", "1m"]
 df = pd.read_csv("results/sae_probes_gemma-2-9b/normal_setting/all_metrics.csv")

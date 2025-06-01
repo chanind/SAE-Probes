@@ -1,10 +1,9 @@
 # %%
 import glob
-import pickle
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+import pickle
+
+import pandas as pd
 from tqdm import tqdm
 
 
@@ -22,7 +21,7 @@ def process_metrics(file, model_name):
                     metric["sae_id"] = f"{name}"
                     metric["sae_l0"] = rounded_l0
             return metrics
-        except Exception as e:
+        except Exception:
             return None
 
 

@@ -1,22 +1,16 @@
 # %%
-import torch
-from utils_data import (
-    get_numbered_binary_tags,
-    get_dataset_sizes,
-    get_yvals,
-    get_train_test_indices,
-)
-import os
-from tqdm import tqdm
-import pandas as pd
-from utils_training import find_best_reg
 import pickle as pkl
 import warnings
-from sklearn.exceptions import ConvergenceWarning
-import numpy as np
+
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-import argparse
+import numpy as np
+import pandas as pd
+from sklearn.exceptions import ConvergenceWarning
+
+from sae_probes.utils_data import (
+    get_dataset_sizes,
+    get_numbered_binary_tags,
+)
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 
@@ -382,7 +376,6 @@ pct_best_sae_beats_best_baseline = (
 ).mean() * 100
 
 # Create 3 bar plots showing the percentages
-import matplotlib.pyplot as plt
 
 
 def plot_comparison_bars(

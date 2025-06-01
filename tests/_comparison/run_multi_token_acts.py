@@ -16,14 +16,14 @@ from sklearn.decomposition import PCA
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
+from utils_training import find_best_reg
 
-from utils_data import (
+from .utils_data import (
     get_dataset_sizes,
     get_numbered_binary_tags,
     get_train_test_indices,
     get_yvals,
 )
-from utils_training import find_best_reg
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
 

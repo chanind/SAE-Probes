@@ -72,7 +72,7 @@ def _process_activations(
 def generate_single_dataset_activations(
     model: HookedTransformer,
     model_name: str,
-    dataset_name: str,
+    dataset_path: str | Path,
     layers: list[int],
     device: str = "cuda",
     max_seq_len: int = 1024,
@@ -82,10 +82,10 @@ def generate_single_dataset_activations(
 ):
     # Define hook names based on model
     hook_names = [f"blocks.{layer}.hook_resid_post" for layer in layers]
-    dataset = pd.read_csv(dataset_name)
+    dataset = pd.read_csv(dataset_path)
     if "prompt" not in dataset.columns:
         return
-    dataset_short_name = dataset_name.split("/")[-1].split(".")[0]
+    dataset_short_name = str(dataset_path).split("/")[-1].split(".")[0]
     file_names = [
         Path(model_cache_path)
         / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
@@ -153,15 +153,15 @@ def generate_dataset_activations(
     model = HookedTransformer.from_pretrained(model_name, device=device)
 
     if OOD:
-        dataset_names = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
+        dataset_paths = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
     else:
-        dataset_names = glob.glob(str(DATA_PATH / "cleaned_data" / "*.csv"))
+        dataset_paths = glob.glob(str(DATA_PATH / "cleaned_data" / "*.csv"))
 
-    for dataset_name in dataset_names:
+    for dataset_path in dataset_paths:
         generate_single_dataset_activations(
             model=model,
             model_name=model_name,
-            dataset_name=dataset_name,
+            dataset_path=dataset_path,
             layers=layers,
             device=device,
             max_seq_len=max_seq_len,

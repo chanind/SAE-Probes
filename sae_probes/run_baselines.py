@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -27,6 +28,7 @@ from .utils_data import (
 )
 from .utils_sae import get_xy_OOD_sae
 from .utils_training import (
+    BestClassifierResults,
     find_best_knn,
     find_best_mlp,
     find_best_pcareg,
@@ -34,9 +36,9 @@ from .utils_training import (
     find_best_xgboost,
 )
 
-dataset_sizes = get_dataset_sizes()
-datasets = get_numbered_binary_tags()
-methods = {
+DATASET_SIZES = get_dataset_sizes()
+DATASETS = get_numbered_binary_tags()
+METHODS: dict[str, Callable[[Any, Any, Any, Any], BestClassifierResults]] = {
     "logreg": find_best_reg,
     "pca": find_best_pcareg,
     "knn": find_best_knn,
@@ -64,14 +66,14 @@ def run_baseline_dataset_layer(
     os.makedirs(os.path.dirname(savepath), exist_ok=True)
     if os.path.exists(savepath):
         return None
-    size = dataset_sizes[numbered_dataset]
+    size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train, numbered_dataset, layer, model_name=model_name
     )
 
     # Run method and get metrics
-    method = methods[method_name]
+    method = METHODS[method_name]
     metrics = method(X_train, y_train, X_test, y_test)
 
     # Create row with dataset and method metrics and save to csv
@@ -85,7 +87,7 @@ def run_baseline_dataset_layer(
 def run_all_baseline_normal(model_name: str, layers: list[int]):
     shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
-    for method_name in methods.keys():
+    for method_name in METHODS.keys():
         for layer in layers:
             for dataset in shuffled_datasets:
                 run_baseline_dataset_layer(
@@ -99,8 +101,8 @@ def coalesce_all_baseline_normal(
     # takes individual csvs and makes it into one big csv
     for layer in layers:
         all_results = []
-        for dataset in datasets:
-            for method_name in methods.keys():
+        for dataset in DATASETS:
+            for method_name in METHODS.keys():
                 savepath = (
                     Path(results_path)
                     / f"baseline_results_{model_name}/normal/allruns/layer{layer}_{dataset}_{method_name}.csv"
@@ -143,7 +145,7 @@ def run_baseline_scarcity(
     os.makedirs(os.path.dirname(savepath), exist_ok=True)
     if os.path.exists(savepath):
         return None
-    size = dataset_sizes[numbered_dataset]
+    size = DATASET_SIZES[numbered_dataset]
     if num_train > size - 100:
         # we dont have enough test examples
         return
@@ -155,7 +157,7 @@ def run_baseline_scarcity(
         model_cache_path=model_cache_path,
     )
     # Run method and get metrics
-    method = methods[method_name]
+    method = METHODS[method_name]
     metrics = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {"dataset": numbered_dataset, "method": method_name, "num_train": num_train}
@@ -176,7 +178,7 @@ def run_all_baseline_scarcity(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
-    for method_name in methods.keys():
+    for method_name in METHODS.keys():
         for train in train_sizes:
             for dataset in shuffled_datasets:
                 run_baseline_scarcity(
@@ -207,10 +209,10 @@ def coalesce_all_scarcity(
     os.makedirs(dataset_path, exist_ok=True)
     os.makedirs(allpath, exist_ok=True)
 
-    for dataset in datasets:
+    for dataset in DATASETS:
         dataset_results = []
         for num_train in train_sizes:
-            for method_name in methods.keys():
+            for method_name in METHODS.keys():
                 savepath = (
                     Path(results_path)
                     / f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{dataset}_{method_name}_numtrain{num_train}.csv"
@@ -220,9 +222,9 @@ def coalesce_all_scarcity(
                     dataset_results.append(df)
                     all_results.append(df)
                 else:
-                    if num_train + 100 <= dataset_sizes[dataset]:
+                    if num_train + 100 <= DATASET_SIZES[dataset]:
                         raise ValueError(
-                            f"Missing file {method_name}, {dataset} ({num_train}/{dataset_sizes[dataset]})"
+                            f"Missing file {method_name}, {dataset} ({num_train}/{DATASET_SIZES[dataset]})"
                         )
 
         # Save dataset-specific results
@@ -272,7 +274,7 @@ def run_baseline_class_imbalance(
         model_cache_path=model_cache_path,
     )
     # Run method and get metrics
-    method = methods[method_name]
+    method = METHODS[method_name]
     metrics = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {
@@ -299,7 +301,7 @@ def run_all_baseline_class_imbalance(
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
     i = 0
-    for method_name in methods.keys():
+    for method_name in METHODS.keys():
         for frac in fracs:
             for dataset in shuffled_datasets:
                 val = run_baseline_class_imbalance(
@@ -329,10 +331,10 @@ def coalesce_all_imbalance(
     os.makedirs(allpath, exist_ok=True)
     fracs = get_class_imbalance()
     i = 0
-    for dataset in datasets:
+    for dataset in DATASETS:
         dataset_results = []
         for frac in fracs:
-            for method_name in methods.keys():
+            for method_name in METHODS.keys():
                 frac = round(frac * 20) / 20
                 savepath = (
                     Path(results_path)
@@ -382,7 +384,7 @@ def run_baseline_corrupt(
     os.makedirs(os.path.dirname(savepath), exist_ok=True)
     if os.path.exists(savepath):
         return None
-    size = dataset_sizes[numbered_dataset]
+    size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
@@ -393,7 +395,7 @@ def run_baseline_corrupt(
     )
     y_train = corrupt_ytrain(y_train, corrupt_frac)
     # Run method and get metrics
-    method = methods[method_name]
+    method = METHODS[method_name]
     metrics = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {
@@ -448,7 +450,7 @@ def coalesce_all_corrupt(
     os.makedirs(dataset_path, exist_ok=True)
     os.makedirs(allpath, exist_ok=True)
     fracs = get_corrupt_frac()
-    for dataset in datasets:
+    for dataset in DATASETS:
         dataset_results = []
         for frac in fracs:
             for method_name in ["logreg"]:
@@ -463,7 +465,7 @@ def coalesce_all_corrupt(
                     all_results.append(df)
                 else:
                     raise ValueError(
-                        f"Missing file {method_name}, {dataset} ({frac}/{dataset_sizes[dataset]})"
+                        f"Missing file {method_name}, {dataset} ({frac}/{DATASET_SIZES[dataset]})"
                     )
                     # print(f'Missing file {method_name}, {dataset} ({num_train}/{dataset_sizes[dataset]})')
 

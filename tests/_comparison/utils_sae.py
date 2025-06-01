@@ -2,10 +2,9 @@
 import numpy as np
 import pandas as pd
 import torch
+from handle_sae_bench_saes import get_gemma_2_2b_sae_ids, load_gemma_2_2b_sae
 from sae_lens import SAE
 from sae_lens.toolkit.pretrained_saes_directory import get_pretrained_saes_directory
-
-from handle_sae_bench_saes import get_gemma_2_2b_sae_ids, load_gemma_2_2b_sae
 
 from .utils_data import get_xy_glue, get_xy_OOD, get_xyvals
 

@@ -1,9 +1,12 @@
 import random
+from dataclasses import dataclass
+from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import xgboost
 from joblib import Parallel, delayed
+from sklearn.base import ClassifierMixin
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
@@ -11,6 +14,20 @@ from sklearn.model_selection import LeavePOut, StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+
+
+@dataclass
+class Metrics:
+    test_f1: float
+    test_acc: float
+    test_auc: float
+    val_auc: float
+
+
+class BestClassifierResults(NamedTuple):
+    metrics: Metrics
+    classifier: ClassifierMixin
+    scaler: StandardScaler | None
 
 
 def get_cv(X_train: np.ndarray):
@@ -53,8 +70,7 @@ def find_best_reg(
     parallel: bool = False,
     penalty: str = "l2",
     seed: int = 1,
-    return_classifier: bool = False,
-):
+) -> BestClassifierResults:
     # Determine cross-validation strategy
     best_C = None
     if (
@@ -103,7 +119,6 @@ def find_best_reg(
         best_C = Cs[best_C_index]
 
     # Train final model with best C
-    metrics = {}
 
     if best_C is not None:
         if penalty == "l1":
@@ -126,32 +141,36 @@ def find_best_reg(
     y_train = y_train[shuffle_idx]
     final_model.fit(X_train, y_train)
     y_test_pred = final_model.predict(X_test)
-    metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-    metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+    test_acc = accuracy_score(y_test, y_test_pred)
     # Use predict_proba to get probability estimates for the positive class (class 1)
     y_test_pred_proba = final_model.predict_proba(X_test)[:, 1]
-    metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
+    test_auc = roc_auc_score(y_test, y_test_pred_proba)
     if best_C is not None:
-        metrics["val_auc"] = np.max(avg_scores)
+        val_auc = np.max(avg_scores)
     else:
-        metrics["val_auc"] = roc_auc_score(
-            y_train, final_model.predict_proba(X_train)[:, 1]
-        )
+        val_auc = roc_auc_score(y_train, final_model.predict_proba(X_train)[:, 1])
+    metrics = Metrics(
+        test_f1=float(test_f1),
+        test_acc=float(test_acc),
+        test_auc=float(test_auc),
+        val_auc=float(val_auc),
+    )
     if plot:
         plt.semilogx(Cs, avg_scores)
         plt.xlabel("Inverse of Regularization Strength (C)")
         met1_name, met2_name = "auc", "auc"
         plt.ylabel(f"{met1_name} on validation data")
         plt.title(
-            f"{'Logistic Regression'} Performance vs Regularization\nBest C = {best_C:.5f}; {met2_name} = {metrics[met2_name]:.2f}"
+            f"{'Logistic Regression'} Performance vs Regularization\nBest C = {best_C:.5f}; {met2_name} = {metrics.__dict__[met2_name]:.2f}"
         )
         plt.show()
-    if return_classifier:
-        return metrics, final_model
-    return metrics
+    return BestClassifierResults(metrics=metrics, classifier=final_model, scaler=None)
 
 
-def find_best_pcareg(X_train, y_train, X_test, y_test, plot=False, max_pca_comps=100):
+def find_best_pcareg(
+    X_train, y_train, X_test, y_test, plot: float = False, max_pca_comps: int = 100
+) -> BestClassifierResults:
     # Standardize the data
     scaler = StandardScaler()
     X_combined_scaled = scaler.fit_transform(X_train)
@@ -170,7 +189,7 @@ def find_best_pcareg(X_train, y_train, X_test, y_test, plot=False, max_pca_comps
     best_score = -float("inf")
     best_model = None
     best_n_components = None
-    metrics = {}
+    val_auc = None
     if X_combined_pca_full.shape[0] > 3:
         cv = get_cv(X_train)
         scores = []
@@ -198,14 +217,14 @@ def find_best_pcareg(X_train, y_train, X_test, y_test, plot=False, max_pca_comps
                     X_pca, y_train
                 )
                 best_n_components = n_components
-                metrics["val_auc"] = best_score
+                val_auc = best_score
     else:
         best_n_components = X_combined_pca_full.shape[0]
         best_model = LogisticRegression(random_state=42, max_iter=1000).fit(
             X_combined_pca_full, y_train
         )
         y_train_pred_proba = best_model.predict_proba(X_combined_pca_full)[:, 1]
-        metrics["val_auc"] = roc_auc_score(y_train, y_train_pred_proba)
+        val_auc = roc_auc_score(y_train, y_train_pred_proba)
 
     # Transform test data using PCA
     X_test_pca = pca.transform(X_test_scaled)[:, :best_n_components]
@@ -213,11 +232,19 @@ def find_best_pcareg(X_train, y_train, X_test, y_test, plot=False, max_pca_comps
     # Make predictions on test set
     y_test_pred = best_model.predict(X_test_pca)  # type: ignore
 
-    metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-    metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+    test_acc = accuracy_score(y_test, y_test_pred)
     # Use predict_proba to get probability estimates for the positive class (class 1)
     y_test_pred_proba = best_model.predict_proba(X_test_pca)[:, 1]  # type: ignore
-    metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
+    test_auc = roc_auc_score(y_test, y_test_pred_proba)
+
+    assert val_auc is not None
+    metrics = Metrics(
+        test_f1=float(test_f1),
+        test_acc=float(test_acc),
+        test_auc=float(test_auc),
+        val_auc=float(val_auc),
+    )
 
     if plot and X_combined_pca_full.shape[0] > 3:
         plt.semilogx(pca_dimensions, scores)
@@ -226,19 +253,22 @@ def find_best_pcareg(X_train, y_train, X_test, y_test, plot=False, max_pca_comps
         met1_name, met2_name = "auc", "auc"
         plt.ylabel(f"{met1_name} on validation data")
         plt.title(
-            f"Best PCA dimension: {best_n_components}, {met2_name} = {metrics[met2_name]:.2f}"
+            f"Best PCA dimension: {best_n_components}, {met2_name} = {metrics.__dict__[met2_name]:.2f}"
         )
         plt.show()
 
-    return metrics
+    assert best_model is not None
+    return BestClassifierResults(metrics=metrics, classifier=best_model, scaler=scaler)
 
 
-def find_best_knn(X_train, y_train, X_test, y_test, plot=False, n_jobs=-1):
+def find_best_knn(
+    X_train, y_train, X_test, y_test, plot=False, n_jobs=-1
+) -> BestClassifierResults:
     # Standardize the data
     scaler = StandardScaler()
     X_combined_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
-    metrics = {}
+
     if X_train.shape[0] > 3:
         # Determine the range of k values to try
         cv = get_cv(X_train)
@@ -284,7 +314,7 @@ def find_best_knn(X_train, y_train, X_test, y_test, plot=False, n_jobs=-1):
                 best_model = KNeighborsClassifier(n_neighbors=k).fit(
                     X_combined_scaled, y_train
                 )
-                metrics["val_auc"] = best_score
+                val_auc = best_score
                 best_k = k
     else:
         best_k = 1
@@ -292,14 +322,21 @@ def find_best_knn(X_train, y_train, X_test, y_test, plot=False, n_jobs=-1):
             X_combined_scaled, y_train
         )
         y_train_pred_proba = best_model.predict_proba(X_combined_scaled)[:, 1]  # type: ignore
-        metrics["val_auc"] = roc_auc_score(y_train, y_train_pred_proba)
+        val_auc = roc_auc_score(y_train, y_train_pred_proba)
     # Make predictions on test set
     y_test_pred = best_model.predict(X_test_scaled)  # type: ignore
-    metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-    metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+    test_acc = accuracy_score(y_test, y_test_pred)
     # Use predict_proba to get probability estimates for the positive class (class 1)
     y_test_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]  # type: ignore
-    metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
+    test_auc = roc_auc_score(y_test, y_test_pred_proba)
+
+    metrics = Metrics(
+        test_f1=float(test_f1),
+        test_acc=float(test_acc),
+        test_auc=float(test_auc),
+        val_auc=float(val_auc),
+    )
 
     if plot and X_train.shape[0] > 3:
         plt.semilogx(k_values, scores)
@@ -307,10 +344,11 @@ def find_best_knn(X_train, y_train, X_test, y_test, plot=False, n_jobs=-1):
         plt.xscale("log", base=2)
         met1_name, met2_name = "auc", "auc"
         plt.ylabel(f"{met1_name} on validation data")
-        plt.title(f"Best k: {best_k}, {met2_name} = {metrics[met2_name]:.2f}")
+        plt.title(f"Best k: {best_k}, {met2_name} = {metrics.__dict__[met2_name]:.2f}")
         plt.show()
 
-    return metrics
+    assert best_model is not None
+    return BestClassifierResults(metrics, best_model, scaler)
 
 
 def find_best_xgboost(
@@ -318,7 +356,7 @@ def find_best_xgboost(
     y_train,
     X_test,
     y_test,
-):
+) -> BestClassifierResults:
     # Check if X_train has less than 3 samples
 
     # Standardize the data
@@ -331,14 +369,20 @@ def find_best_xgboost(
         default_model = xgboost.XGBClassifier()
         default_model.fit(X_train_scaled, y_train)
         y_test_pred = default_model.predict(X_test_scaled)
-        metrics = {}
         y_train_proba = default_model.predict_proba(X_train_scaled)[:, 1]
-        metrics["val_auc"] = roc_auc_score(y_train, y_train_proba)
-        metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-        metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+        val_auc = roc_auc_score(y_train, y_train_proba)
+        test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+        test_acc = accuracy_score(y_test, y_test_pred)
         y_test_pred_proba = default_model.predict_proba(X_test)[:, 1]
-        metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
-        return metrics
+        test_auc = roc_auc_score(y_test, y_test_pred_proba)
+
+        metrics = Metrics(
+            test_f1=float(test_f1),
+            test_acc=float(test_acc),
+            test_auc=float(test_auc),
+            val_auc=float(val_auc),
+        )
+        return BestClassifierResults(metrics, default_model, scaler)
 
     # Define the hyperparameter space for random search
     param_space = {
@@ -378,25 +422,29 @@ def find_best_xgboost(
             best_auc = mean_auc
             best_params = params
 
-    metrics = {}
     best_model = xgboost.XGBClassifier(**best_params, eval_metric="logloss")  # type: ignore
     best_model.fit(X_train_scaled, y_train)
     y_test_pred = best_model.predict(X_test_scaled)
-    metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-    metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+    test_acc = accuracy_score(y_test, y_test_pred)
     y_test_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]
-    metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
-    metrics["val_auc"] = best_auc
+    test_auc = roc_auc_score(y_test, y_test_pred_proba)
+    val_auc = best_auc
 
-    return metrics
+    metrics = Metrics(
+        test_f1=float(test_f1),
+        test_acc=float(test_acc),
+        test_auc=float(test_auc),
+        val_auc=float(val_auc),
+    )
+
+    return BestClassifierResults(metrics, best_model, scaler)
 
 
 # Example usage with a dataset
 
 
-def find_best_mlp(
-    X_train, y_train, X_test, y_test, classification=True, binary=True, plot=False
-):
+def find_best_mlp(X_train, y_train, X_test, y_test) -> BestClassifierResults:
     # Combine train and validation sets
     X_combined = X_train
     y_combined = y_train
@@ -406,20 +454,15 @@ def find_best_mlp(
     X_combined_scaled = scaler.fit_transform(X_combined)
     X_test_scaled = scaler.transform(X_test)
 
-    if not classification:
-        y_scaler = StandardScaler()
-        y_combined = y_scaler.fit_transform(y_combined.reshape(-1, 1)).ravel()
-        y_test = y_scaler.transform(y_test.reshape(-1, 1)).ravel()
-
     # Check if X_train has less than 3 samples
-    metrics = {}
+
     if X_train.shape[0] <= 3:
         best_model = MLPClassifier(
             hidden_layer_sizes=(32,), max_iter=1000, random_state=42
         )
         best_model.fit(X_combined_scaled, y_combined)
         y_train_pred_proba = best_model.predict_proba(X_combined_scaled)[:, 1]
-        metrics["val_auc"] = roc_auc_score(y_train, y_train_pred_proba)
+        val_auc = roc_auc_score(y_train, y_train_pred_proba)
     else:
         # Define the hyperparameter space for random search
         param_dist = {
@@ -485,7 +528,7 @@ def find_best_mlp(
                 best_score = mean_cv_score
                 best_params = curr_params
 
-        metrics["val_auc"] = best_score
+        val_auc = best_score
 
         # Retrain on full training data with best params
         best_model = MLPClassifier(max_iter=1000, random_state=42, **best_params)
@@ -495,9 +538,17 @@ def find_best_mlp(
     y_test_pred = best_model.predict(X_test_scaled)
 
     # Calculate F1 score and accuracy for classification
-    metrics["test_f1"] = f1_score(y_test, y_test_pred, average="weighted")
-    metrics["test_acc"] = accuracy_score(y_test, y_test_pred)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted")
+    test_acc = accuracy_score(y_test, y_test_pred)
     # Use predict_proba to get probability estimates for the positive class (class 1)
     y_test_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]
-    metrics["test_auc"] = roc_auc_score(y_test, y_test_pred_proba)
-    return metrics
+    test_auc = roc_auc_score(y_test, y_test_pred_proba)
+
+    metrics = Metrics(
+        test_f1=float(test_f1),
+        test_acc=float(test_acc),
+        test_auc=float(test_auc),
+        val_auc=float(val_auc),
+    )
+
+    return BestClassifierResults(metrics, best_model, scaler)
