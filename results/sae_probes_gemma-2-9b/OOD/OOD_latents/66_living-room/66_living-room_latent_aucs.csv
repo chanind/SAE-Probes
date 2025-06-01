@@ -1,9 +1,0 @@
-latent,ood_auc,coef,Relevance,Neuronpedia,val_auc
-122774,0.6402222222222221,-0.6515105796,1,mentions of living rooms or parlors in houses or apartments.,1.0
-116246,0.5397777777777778,0.04428012375,6,"numbers, dates, and numerical measurements, particularly in scientific or technical contexts.",0.7469951923076924
-40168,0.4513333333333333,0.3424091452,7,"technical terms and components related to computer systems, engineering, and scientific analysis.",0.921875
-78823,0.4525777777777777,-0.03467894383,5,"words and phrases related to specific places, attractions, and experiences, particularly in the context of travel and tourism.",0.6696714743589743
-7498,0.6206222222222223,0.2126143585,4,"locations within a house, particularly upstairs, downstairs, basement, bathroom, and kitchen areas.",0.7524038461538461
-98707,0.6177333333333334,0.236727632,2,"phrases and words related to locations or settings, particularly indoor spaces like rooms, parlors, or living areas, as well as time references like afternoon or specific times.",0.8697916666666666
-51330,0.648311111111111,0.05296644327,8,"objects and materials related to scientific experiments and laboratory equipment, particularly those involving fluids, particles, or microscopic samples.",0.7319711538461539
-100016,0.4736,0.09400204649,3,"mentions of rooms or enclosed spaces, particularly when discussing physical locations or settings.",0.6895032051282051

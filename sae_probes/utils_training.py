@@ -461,7 +461,7 @@ def find_best_mlp(X_train, y_train, X_test, y_test) -> BestClassifierResults:
             hidden_layer_sizes=(32,), max_iter=1000, random_state=42
         )
         best_model.fit(X_combined_scaled, y_combined)
-        y_train_pred_proba = best_model.predict_proba(X_combined_scaled)[:, 1]
+        y_train_pred_proba = best_model.predict_proba(X_combined_scaled)[:, 1]  # type: ignore
         val_auc = roc_auc_score(y_train, y_train_pred_proba)
     else:
         # Define the hyperparameter space for random search
@@ -517,7 +517,7 @@ def find_best_mlp(X_train, y_train, X_test, y_test) -> BestClassifierResults:
                 model.fit(X_combined_scaled[train_idx], y_combined[train_idx])
 
                 # Get probabilities and compute AUC
-                val_proba = model.predict_proba(X_combined_scaled[val_idx])[:, 1]
+                val_proba = model.predict_proba(X_combined_scaled[val_idx])[:, 1]  # type: ignore
                 cv_scores.append(roc_auc_score(y_combined[val_idx], val_proba))
 
             # Average score across folds
@@ -531,7 +531,7 @@ def find_best_mlp(X_train, y_train, X_test, y_test) -> BestClassifierResults:
         val_auc = best_score
 
         # Retrain on full training data with best params
-        best_model = MLPClassifier(max_iter=1000, random_state=42, **best_params)
+        best_model = MLPClassifier(max_iter=1000, random_state=42, **best_params)  # type: ignore
         best_model.fit(X_combined_scaled, y_combined)
 
     # Make predictions on test set
@@ -541,7 +541,7 @@ def find_best_mlp(X_train, y_train, X_test, y_test) -> BestClassifierResults:
     test_f1 = f1_score(y_test, y_test_pred, average="weighted")
     test_acc = accuracy_score(y_test, y_test_pred)
     # Use predict_proba to get probability estimates for the positive class (class 1)
-    y_test_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]
+    y_test_pred_proba = best_model.predict_proba(X_test_scaled)[:, 1]  # type: ignore
     test_auc = roc_auc_score(y_test, y_test_pred_proba)
 
     metrics = Metrics(

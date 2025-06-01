@@ -1,4 +1,5 @@
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 
@@ -74,11 +75,11 @@ def run_baseline_dataset_layer(
 
     # Run method and get metrics
     method = METHODS[method_name]
-    metrics = method(X_train, y_train, X_test, y_test)
+    results = method(X_train, y_train, X_test, y_test)
 
     # Create row with dataset and method metrics and save to csv
     row = {"dataset": numbered_dataset, "method": method_name}
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
     pd.DataFrame([row]).to_csv(savepath, index=False)
     return True
@@ -158,10 +159,10 @@ def run_baseline_scarcity(
     )
     # Run method and get metrics
     method = METHODS[method_name]
-    metrics = method(X_train, y_train, X_test, y_test)
+    results = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {"dataset": numbered_dataset, "method": method_name, "num_train": num_train}
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
     pd.DataFrame([row]).to_csv(savepath, index=False)
     return True
@@ -275,7 +276,7 @@ def run_baseline_class_imbalance(
     )
     # Run method and get metrics
     method = METHODS[method_name]
-    metrics = method(X_train, y_train, X_test, y_test)
+    results = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {
         "dataset": numbered_dataset,
@@ -283,7 +284,7 @@ def run_baseline_class_imbalance(
         "ratio": dataset_frac,
         "num_train": num_train,
     }
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
     pd.DataFrame([row]).to_csv(savepath, index=False)
     return True
@@ -300,11 +301,10 @@ def run_all_baseline_class_imbalance(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
-    i = 0
     for method_name in METHODS.keys():
         for frac in fracs:
             for dataset in shuffled_datasets:
-                val = run_baseline_class_imbalance(
+                run_baseline_class_imbalance(
                     frac,
                     dataset,
                     method_name,
@@ -396,7 +396,7 @@ def run_baseline_corrupt(
     y_train = corrupt_ytrain(y_train, corrupt_frac)
     # Run method and get metrics
     method = METHODS[method_name]
-    metrics = method(X_train, y_train, X_test, y_test)
+    results = method(X_train, y_train, X_test, y_test)
     # Create row with dataset and method metrics and save to csv
     row = {
         "dataset": numbered_dataset,
@@ -404,7 +404,7 @@ def run_baseline_corrupt(
         "ratio": corrupt_frac,
         "num_train": num_train,
     }
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
     pd.DataFrame([row]).to_csv(savepath, index=False)
     return True

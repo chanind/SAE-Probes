@@ -1,9 +1,0 @@
-latent,ood_auc,val_auc,coef,Relevance,Neuronpedia
-19554,0.4966666667,0.6736778846,-0.02377405758,7,"years in the early 20th century, particularly around 1900-1930, often in the context of inventions or historical events."
-113633,0.5,0.6322115385,-0.02587245125,1,"factual statements or informational content, often with numerical data or specific details."
-104506,0.5,0.7960737179,0.0968088697,6,"dates and numerical information, particularly years and copyright notices."
-116246,0.5261777778,0.6157852564,-0.002928575693,5,"numbers, dates, and numerical measurements, particularly in scientific or technical contexts."
-20736,0.5266666667,0.7506009615,0.06172638481,2,"informative or instructional statements, particularly those related to how-to guides, best practices, or important details in various contexts."
-81156,0.4655555556,0.6442307692,0.0562100925,3,"names of organizations, institutions, locations, and technical terms, particularly related to scientific, medical, and technological domains."
-42050,0.5,0.6326121795,-0.1503421747,4,"affirmative responses and statements, particularly those expressing agreement or confirmation."
-40737,0.51,0.6512419872,-0.02269759076,8,"sentence-ending punctuation, particularly periods."

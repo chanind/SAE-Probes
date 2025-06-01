@@ -273,7 +273,7 @@ def run_sae_evals(
                 )
                 if not save_path.exists():
                     print(
-                        f"Running probe for dataset {dataset}, layer {layer}, SAE {sae_id}, "
+                        f"Running probe for dataset {dataset}, layer {layer}, "
                         f"reg_type {reg_type}, num_train {num_train}, setting {setting}"
                     )
                     success = run_sae_eval(

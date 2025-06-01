@@ -30,7 +30,7 @@ def test_get_binary_df():
     # Check a specific known binary dataset
     assert "hist_fig_ismale" in df["Dataset Tag"].values
     assert (
-        df[df["Dataset Tag"] == "hist_fig_ismale"]["Dataset save name"].iloc[0]
+        df[df["Dataset Tag"] == "hist_fig_ismale"]["Dataset save name"].iloc[0]  # type: ignore
         == "cleaned_data/5_hist_fig_ismale.csv"
     )
 

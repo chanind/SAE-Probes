@@ -1,9 +1,0 @@
-latent,ood_auc,val_auc,coef,Relevance,Neuronpedia
-128570,0.5302929131,0.5997596154,-0.01682549866,6,"words with scientific or technical suffixes, particularly ""-ity"", ""-osis"", ""-ous"", and ""-ose""."
-96923,0.5,0.5,0.0009217569369,2,"full names of people, particularly those who may be authors, journalists, or public figures."
-116160,0.5646144943,0.6009615385,-0.009182426143,4,"references to German locations, cities, or entities."
-87638,0.5596064815,0.6696714744,-0.0443703101,1,"biographical details and timelines, particularly focusing on early life events, education, and career progression."
-81156,0.4999109687,0.5264423077,0.03768636235,3,"names of organizations, institutions, locations, and technical terms, particularly related to scientific, medical, and technological domains."
-124051,0.5,0.5,-0.004766409247,8,open source software license text and copyright notices.
-17105,0.5736066595,0.5959535256,-0.07757048493,7,"technical terminology and scientific or medical jargon, particularly related to biology, chemistry, and computer science."
-9551,0.5434027778,0.547275641,0.04688937358,5,"Korean names, particularly the syllables that make up Korean names. The neuron shows high activation for common Korean name components like ""Eun"", ""Sung"", ""Soo"", ""Hye"", ""Jin"", etc., especially when they are followed by a hyphen, whic"

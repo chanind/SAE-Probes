@@ -1,9 +1,0 @@
-dataset,test_auc_baseline
-66_living-room,0.840488888888889
-87_glue_cola,0.72
-73_control-group,0.7746666666666667
-7_hist_fig_ispolitician,0.640758547008547
-90_glue_qnli,0.5874666666666666
-6_hist_fig_isamerican,0.9094222222222222
-67_social-security,0.9131111111111111
-5_hist_fig_ismale,0.9752106867491483

@@ -18,6 +18,7 @@ build/
 
 # Data and Results (runtime generated)
 results/
+test_cache/
 
 # IDEs and editors
 .idea/

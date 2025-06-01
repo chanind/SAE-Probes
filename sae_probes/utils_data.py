@@ -16,7 +16,7 @@ def get_binary_df() -> pd.DataFrame:
     df = pd.read_csv(DATA_PATH / "probing_datasets_MASTER.csv")
     # Filter for Binary Classification datasets
     binary_datasets = df[df["Data type"] == "Binary Classification"]
-    return binary_datasets
+    return binary_datasets  # type: ignore
 
 
 def get_numbered_binary_tags():
@@ -28,7 +28,7 @@ def read_dataset_df(dataset_tag):
     # returns dataframe of df
     df = get_binary_df()
     # Find the dataset save name for the given dataset tag
-    dataset_save_name = df[df["Dataset Tag"] == dataset_tag]["Dataset save name"].iloc[
+    dataset_save_name = df[df["Dataset Tag"] == dataset_tag]["Dataset save name"].iloc[  # type: ignore
         0
     ]
     # Read and return the dataset from the save location
