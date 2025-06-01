@@ -1,5 +1,6 @@
 import glob
 import os
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
 
 
 # DATA UTILS
+@cache
 def get_binary_df() -> pd.DataFrame:
     # returns a list of the data tags for all binary classification datasets
     df = pd.read_csv(DATA_PATH / "probing_datasets_MASTER.csv")
@@ -24,6 +26,7 @@ def get_numbered_binary_tags():
     return [name.split("/")[-1].split(".")[0] for name in df["Dataset save name"]]
 
 
+@cache
 def read_dataset_df(dataset_tag):
     # returns dataframe of df
     df = get_binary_df()
@@ -176,6 +179,7 @@ def get_xy_traintest(
     return X_train, y_train, X_test, y_test
 
 
+@cache
 def get_dataset_sizes():
     """
     Returns a DataFrame containing the dataset tag and total number of samples for each binary dataset.

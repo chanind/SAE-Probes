@@ -1,6 +1,7 @@
 import argparse
 import pickle as pkl
 import warnings
+from dataclasses import asdict
 from pathlib import Path
 
 import torch
@@ -23,11 +24,11 @@ warnings.simplefilter("ignore", category=ConvergenceWarning)
 
 
 # Constants and datasets
-dataset_sizes = get_dataset_sizes()
-datasets = get_numbered_binary_tags()
-train_sizes = get_training_sizes()
-corrupt_fracs = get_corrupt_frac()
-fracs = get_class_imbalance()
+DATASET_SIZES = get_dataset_sizes()
+DATASETS = get_numbered_binary_tags()
+TRAIN_SIZES = get_training_sizes()
+CORRUPT_FRACS = get_corrupt_frac()
+FRACS = get_class_imbalance()
 
 
 def load_activations(path):
@@ -158,28 +159,17 @@ def run_sae_eval(
             X_train_filtered = X_train_filtered > 1
             X_test_filtered = X_test_filtered > 1
 
-        if reg_type == "l1":
-            metrics: dict = find_best_reg(  # type: ignore
-                X_train=X_train_filtered,
-                y_train=y_train,
-                X_test=X_test_filtered,
-                y_test=y_test,
-                plot=False,
-                n_jobs=-1,
-                parallel=False,
-                penalty="l1",
-            )
-        else:
-            metrics: dict = find_best_reg(  # type: ignore
-                X_train=X_train_filtered,
-                y_train=y_train,
-                X_test=X_test_filtered,
-                y_test=y_test,
-                plot=False,
-                n_jobs=-1,
-                parallel=False,
-                penalty="l2",
-            )
+        results = find_best_reg(
+            X_train=X_train_filtered,
+            y_train=y_train,
+            X_test=X_test_filtered,
+            y_test=y_test,
+            plot=False,
+            n_jobs=-1,
+            parallel=False,
+            penalty=reg_type,
+        )
+        metrics = asdict(results.metrics)
 
         # Add metadata to metrics
         metrics.update(
@@ -230,7 +220,7 @@ def run_sae_evals(
     binarize: bool = False,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
-    for dataset in datasets:
+    for dataset in DATASETS:
         # Handle different settings
         if setting == "normal":
             save_path = get_save_probe_path(
@@ -258,8 +248,8 @@ def run_sae_evals(
                 )
                 assert success
         elif setting == "scarcity":
-            for num_train in train_sizes:
-                if num_train > dataset_sizes[dataset] - 100:
+            for num_train in TRAIN_SIZES:
+                if num_train > DATASET_SIZES[dataset] - 100:
                     continue
                 save_path = get_save_probe_path(
                     dataset=dataset,
@@ -288,7 +278,7 @@ def run_sae_evals(
                     )
                     assert success
         elif setting == "imbalance":
-            for frac in fracs:
+            for frac in FRACS:
                 save_path = get_save_probe_path(
                     dataset=dataset,
                     layer=layer,

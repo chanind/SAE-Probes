@@ -5,12 +5,11 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import torch
 
 from sae_probes.constants import (
     DEFAULT_MODEL_CACHE_PATH,
     DEFAULT_RESULTS_PATH,
-    DEFAULT_SAE_CACHE_PATH,
 )
 
 from .utils_data import (
@@ -21,13 +20,10 @@ from .utils_data import (
     get_dataset_sizes,
     get_datasets,
     get_numbered_binary_tags,
-    get_OOD_datasets,
-    get_OOD_traintest,
     get_training_sizes,
     get_xy_traintest,
     get_xy_traintest_specify,
 )
-from .utils_sae import get_xy_OOD_sae
 from .utils_training import (
     BestClassifierResults,
     find_best_knn,
@@ -60,12 +56,11 @@ def run_baseline_dataset_layer(
     model_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
 ):
-    savepath = (
-        Path(results_path)
-        / f"baseline_results_{model_name}/normal/allruns/layer{layer}_{numbered_dataset}_{method_name}.csv"
-    )
-    os.makedirs(os.path.dirname(savepath), exist_ok=True)
-    if os.path.exists(savepath):
+    base_path = f"baseline_results_{model_name}/normal/allruns/layer{layer}_{numbered_dataset}_{method_name}"
+    classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
+    metrics_savepath = Path(results_path) / f"{base_path}.csv"
+    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
+    if os.path.exists(metrics_savepath):
         return None
     size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
@@ -81,7 +76,11 @@ def run_baseline_dataset_layer(
     row = {"dataset": numbered_dataset, "method": method_name}
     for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(savepath, index=False)
+    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
+    torch.save(
+        {"classifier": results.classifier, "scaler": results.scaler},
+        classifier_savepath,
+    )
     return True
 
 
@@ -139,12 +138,11 @@ def run_baseline_scarcity(
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    savepath = (
-        Path(results_path)
-        / f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{numbered_dataset}_{method_name}_numtrain{num_train}.csv"
-    )
-    os.makedirs(os.path.dirname(savepath), exist_ok=True)
-    if os.path.exists(savepath):
+    base_path = f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{numbered_dataset}_{method_name}_numtrain{num_train}"
+    metrics_savepath = Path(results_path) / f"{base_path}.csv"
+    classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
+    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
+    if os.path.exists(metrics_savepath):
         return None
     size = DATASET_SIZES[numbered_dataset]
     if num_train > size - 100:
@@ -164,7 +162,11 @@ def run_baseline_scarcity(
     row = {"dataset": numbered_dataset, "method": method_name, "num_train": num_train}
     for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(savepath, index=False)
+    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
+    torch.save(
+        {"classifier": results.classifier, "scaler": results.scaler},
+        classifier_savepath,
+    )
     return True
 
 
@@ -257,12 +259,11 @@ def run_baseline_class_imbalance(
 ):
     assert 0 < dataset_frac < 1
     dataset_frac = round(dataset_frac * 20) / 20
-    savepath = (
-        Path(results_path)
-        / f"baseline_results_{model_name}/imbalance/allruns/layer{layer}_{numbered_dataset}_{method_name}_frac{dataset_frac}.csv"
-    )
-    os.makedirs(os.path.dirname(savepath), exist_ok=True)
-    if os.path.exists(savepath):
+    base_path = f"baseline_results_{model_name}/imbalance/allruns/layer{layer}_{numbered_dataset}_{method_name}_frac{dataset_frac}"
+    classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
+    metrics_savepath = Path(results_path) / f"{base_path}.csv"
+    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
+    if os.path.exists(metrics_savepath):
         return None
     num_train, num_test = get_classimabalance_num_train(numbered_dataset)
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
@@ -277,6 +278,10 @@ def run_baseline_class_imbalance(
     # Run method and get metrics
     method = METHODS[method_name]
     results = method(X_train, y_train, X_test, y_test)
+    torch.save(
+        {"classifier": results.classifier, "scaler": results.scaler},
+        classifier_savepath,
+    )
     # Create row with dataset and method metrics and save to csv
     row = {
         "dataset": numbered_dataset,
@@ -286,7 +291,7 @@ def run_baseline_class_imbalance(
     }
     for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(savepath, index=False)
+    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
     return True
 
 
@@ -377,12 +382,11 @@ def run_baseline_corrupt(
 ):
     assert 0 <= corrupt_frac <= 0.5
     corrupt_frac = round(corrupt_frac * 20) / 20
-    savepath = (
-        Path(results_path)
-        / f"baseline_results_{model_name}/corrupt/allruns/layer{layer}_{numbered_dataset}_{method_name}_corrupt{corrupt_frac}.csv"
-    )
-    os.makedirs(os.path.dirname(savepath), exist_ok=True)
-    if os.path.exists(savepath):
+    base_path = f"baseline_results_{model_name}/corrupt/allruns/layer{layer}_{numbered_dataset}_{method_name}_corrupt{corrupt_frac}"
+    classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
+    metrics_savepath = Path(results_path) / f"{base_path}.csv"
+    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
+    if os.path.exists(metrics_savepath):
         return None
     size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
@@ -406,7 +410,11 @@ def run_baseline_corrupt(
     }
     for metric_name, metric_value in asdict(results.metrics).items():
         row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(savepath, index=False)
+    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
+    torch.save(
+        {"classifier": results.classifier, "scaler": results.scaler},
+        classifier_savepath,
+    )
     return True
 
 
@@ -480,127 +488,3 @@ def coalesce_all_corrupt(
         combined_df = pd.concat(all_results, ignore_index=True)
         summary_savepath = allpath / "all_results.csv"
         combined_df.to_csv(summary_savepath, index=False)
-
-
-"""
-FUNCTIONS FOR OOD EXPERIMENTS. This is the only regime where the SAE and baseline runs are done together
-"""
-
-
-def run_datasets_OOD(
-    model_name: str,
-    runsae: bool,
-    layer: int,
-    translation: bool,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
-):
-    # runs the baseline and sae probes for OOD generalization
-    # trains on normal data but tests on the OOD activations
-    # run_sae should be true to run the sae generalization experiments
-    # translation = True runs the probe on 66_living_room translated into different languages.
-    # You can likely set this to False
-    datasets = get_OOD_datasets(translation=translation)
-    results = []
-
-    for dataset in tqdm(datasets):
-        X_train, y_train, X_test, y_test = get_OOD_traintest(
-            dataset=dataset,
-            model_name=model_name,
-            layer=layer,
-            model_cache_path=model_cache_path,
-        )
-        metrics = find_best_reg(
-            X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, penalty="l2"
-        )
-        tosave = {"dataset": dataset, "test_auc_baseline": metrics["test_auc"]}  # type: ignore
-        if runsae:
-            X_train_sae, y_train_sae, X_test_sae, y_test_sae = get_xy_OOD_sae(  # type: ignore
-                dataset,
-                model_name=model_name,
-                layer=layer,
-                sae_cache_path=sae_cache_path,
-            )
-            metrics_sae = find_best_reg(
-                X_train=X_train_sae,
-                y_train=y_train_sae,
-                X_test=X_test_sae,
-                y_test=y_test_sae,
-                penalty="l1",
-            )
-            tosave["test_auc_sae"] = metrics_sae["test_auc"]  # type: ignore
-        results.append(tosave)
-
-    # Create and save results dataframe
-    os.makedirs(
-        Path(results_path) / f"baseline_probes_{model_name}/ood/", exist_ok=True
-    )
-    results_df = pd.DataFrame(results)
-    results_df.to_csv(
-        Path(results_path) / f"baseline_probes_{model_name}/ood/all_results.csv",
-        index=False,
-    )
-
-
-def ood_pruning(
-    dataset: str,
-    model_name: str,
-    layer: int,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
-):
-    # does OOD Pruning
-    # We use o1 to rank the latents by usefulness to the task via auto-interp explanations,
-    # and prune the least helpful latents to see if that helps performance
-    # section
-    fname = (
-        Path(results_path)
-        / f"sae_probes_{model_name}/OOD/OOD_latents/{dataset}/{dataset}_latent_aucs.csv"
-    )
-    df = pd.read_csv(fname)
-    df = df.sort_values("Relevance")
-    X_train, y_train, X_test, y_test, top_by_average_diff = get_xy_OOD_sae(  # type: ignore
-        dataset,
-        k=8,
-        model_name=model_name,
-        layer=layer,
-        return_indices=True,
-        num_train=1500,
-        sae_cache_path=sae_cache_path,
-    )
-
-    results = []
-    bar = tqdm(range(1, 9))
-    for k in bar:
-        # Get top k latents by relevance
-        top_k_latents = df.head(k)["latent"].values
-
-        # Find indices of these latents in top_by_average_diff
-        indices = [
-            i for i, x in enumerate(top_by_average_diff) if x.item() in top_k_latents
-        ]
-
-        # Index X_train and X_test with these indices
-        X_train_filtered = X_train[:, indices]
-        X_test_filtered = X_test[:, indices]
-
-        # Run find_best_reg
-        metrics = find_best_reg(
-            X_train=X_train_filtered,
-            y_train=y_train,
-            X_test=X_test_filtered,
-            y_test=y_test,
-            penalty="l1",
-        )
-        results.append(
-            {"k": k, "ood_auc": metrics["test_auc"], "val_auc": metrics["val_auc"]}  # type: ignore
-        )
-        bar.set_postfix(results[-1])
-    # Save results to CSV
-    results_df = pd.DataFrame(results)
-    results_df.to_csv(
-        Path(results_path)
-        / f"sae_probes_{model_name}/OOD/OOD_latents/{dataset}/{dataset}_pruned.csv",
-        index=False,
-    )
