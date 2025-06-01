@@ -55,6 +55,7 @@ def run_baseline_dataset_layer(
     method_name: str,
     model_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     base_path = f"baseline_results_{model_name}/normal/allruns/layer{layer}_{numbered_dataset}_{method_name}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
@@ -65,7 +66,11 @@ def run_baseline_dataset_layer(
     size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
     X_train, y_train, X_test, y_test = get_xy_traintest(
-        num_train, numbered_dataset, layer, model_name=model_name
+        num_train,
+        numbered_dataset,
+        layer,
+        model_name=model_name,
+        model_cache_path=model_cache_path,
     )
 
     # Run method and get metrics
@@ -84,14 +89,24 @@ def run_baseline_dataset_layer(
     return True
 
 
-def run_all_baseline_normal(model_name: str, layers: list[int]):
+def run_all_baseline_normal(
+    model_name: str,
+    layers: list[int],
+    results_path: str | Path = DEFAULT_RESULTS_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+):
     shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in METHODS.keys():
         for layer in layers:
             for dataset in shuffled_datasets:
                 run_baseline_dataset_layer(
-                    layer, dataset, method_name, model_name=model_name
+                    layer,
+                    dataset,
+                    method_name,
+                    model_name=model_name,
+                    results_path=results_path,
+                    model_cache_path=model_cache_path,
                 )
 
 
