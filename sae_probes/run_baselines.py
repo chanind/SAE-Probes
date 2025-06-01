@@ -7,6 +7,7 @@ from typing import Any, Callable, Literal
 import numpy as np
 import pandas as pd
 import torch
+from tqdm.auto import tqdm
 
 from sae_probes.constants import (
     DEFAULT_MODEL_CACHE_PATH,
@@ -103,8 +104,10 @@ def run_all_baseline_normal(
         model_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
-    for method_name in methods:
-        for dataset in shuffled_datasets:
+    for method_name in tqdm(methods, desc="Methods", position=0):
+        for dataset in tqdm(
+            shuffled_datasets, desc=f"{method_name} Datasets", position=1, leave=False
+        ):
             run_baseline_dataset_layer(
                 layer,
                 dataset,
@@ -204,9 +207,16 @@ def run_all_baseline_scarcity(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
-    for method_name in methods:
-        for train in train_sizes:
-            for dataset in shuffled_datasets:
+    for method_name in tqdm(methods, desc="Methods", position=0):
+        for train in tqdm(
+            train_sizes, desc=f"{method_name} Train Sizes", position=1, leave=False
+        ):
+            for dataset in tqdm(
+                shuffled_datasets,
+                desc=f"{method_name} ({train}) Datasets",
+                position=2,
+                leave=False,
+            ):
                 run_baseline_scarcity(
                     train,
                     dataset,
@@ -331,9 +341,16 @@ def run_all_baseline_class_imbalance(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
-    for method_name in methods:
-        for frac in fracs:
-            for dataset in shuffled_datasets:
+    for method_name in tqdm(methods, desc="Methods", position=0):
+        for frac in tqdm(
+            fracs, desc=f"{method_name} Fractions", position=1, leave=False
+        ):
+            for dataset in tqdm(
+                shuffled_datasets,
+                desc=f"{method_name} (frac {frac:.2f}) Datasets",
+                position=2,
+                leave=False,
+            ):
                 run_baseline_class_imbalance(
                     frac,
                     dataset,
@@ -455,9 +472,16 @@ def run_all_baseline_corrupt(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_corrupt_frac()
-    for method_name in ["logreg"]:
-        for frac in fracs:
-            for dataset in shuffled_datasets:
+    for method_name in ["logreg"]:  # This loop is not tqdm wrapped by default
+        # You could add a print here if you want to see which method is being processed, e.g.:
+        # print(f"Processing corrupt baselines for method: {method_name}")
+        for frac in tqdm(fracs, desc=f"Corrupt Fracs ({method_name})", position=0):
+            for dataset in tqdm(
+                shuffled_datasets,
+                desc=f"Datasets ({method_name}, frac {frac:.2f})",
+                position=1,
+                leave=False,
+            ):
                 run_baseline_corrupt(
                     frac,
                     dataset,
