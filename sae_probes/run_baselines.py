@@ -91,23 +91,22 @@ def run_baseline_dataset_layer(
 
 def run_all_baseline_normal(
     model_name: str,
-    layers: list[int],
+    layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     shuffled_datasets = get_datasets(model_name).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in METHODS.keys():
-        for layer in layers:
-            for dataset in shuffled_datasets:
-                run_baseline_dataset_layer(
-                    layer,
-                    dataset,
-                    method_name,
-                    model_name=model_name,
-                    results_path=results_path,
-                    model_cache_path=model_cache_path,
-                )
+        for dataset in shuffled_datasets:
+            run_baseline_dataset_layer(
+                layer,
+                dataset,
+                method_name,
+                model_name=model_name,
+                results_path=results_path,
+                model_cache_path=model_cache_path,
+            )
 
 
 def coalesce_all_baseline_normal(
