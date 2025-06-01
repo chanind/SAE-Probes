@@ -13,6 +13,7 @@ sae-lens = "^5.10.5"
 scikit-learn = "^1.6.1"
 pandas = "^2.2.3"
 sae-bench = "^0.4.1"
+xgboost = "^3.0.2"
 
 
 [tool.poetry.group.dev.dependencies]
