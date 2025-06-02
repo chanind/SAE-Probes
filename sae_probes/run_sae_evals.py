@@ -1,4 +1,3 @@
-import argparse
 import pickle as pkl
 import warnings
 from dataclasses import asdict
@@ -225,6 +224,7 @@ def run_sae_evals(
     layer: int,
     reg_type: RegType,
     setting: Setting,
+    ks: list[int] | None = None,
     binarize: bool = False,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
@@ -253,6 +253,7 @@ def run_sae_evals(
                     setting,
                     model_name,
                     binarize,
+                    ks=ks,
                     sae_cache_path=sae_cache_path,
                     model_cache_path=model_cache_path,
                 )
@@ -284,6 +285,7 @@ def run_sae_evals(
                         setting,
                         model_name,
                         num_train=num_train,
+                        ks=ks,
                         sae_cache_path=sae_cache_path,
                         model_cache_path=model_cache_path,
                     )
@@ -313,56 +315,10 @@ def run_sae_evals(
                         setting=setting,
                         model_name=model_name,
                         frac=frac,
+                        ks=ks,
                         sae_cache_path=sae_cache_path,
                         model_cache_path=model_cache_path,
                     )
                     assert success
         else:
             raise ValueError(f"Invalid setting: {setting}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train SAE probes in various settings")
-    parser.add_argument(
-        "--reg_type",
-        type=str,
-        required=True,
-        choices=["l1", "l2"],
-        help="Regularization type",
-    )
-    parser.add_argument(
-        "--setting",
-        type=str,
-        required=True,
-        choices=["normal", "scarcity", "label_noise", "class_imbalance", "OOD"],
-        help="Probe training setting (normal, scarcity, label_noise, or imbalance)",
-    )
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        required=True,
-        choices=["gemma-2-9b", "llama-3.1-8b", "gemma-2-2b"],
-        help="Model name",
-    )
-    parser.add_argument(
-        "--binarize", action="store_true", help="Whether to binarize activations"
-    )
-    parser.add_argument(
-        "--target_sae_id", type=str, help="Target specific SAE ID (optional)"
-    )
-    parser.add_argument(
-        "--randomize_order",
-        action="store_true",
-        help="Randomize order of datasets and layers",
-    )
-
-    args = parser.parse_args()
-
-    run_sae_evals(
-        args.reg_type,
-        args.model_name,
-        args.setting,
-        args.binarize,
-        args.target_sae_id,
-        args.randomize_order,
-    )
