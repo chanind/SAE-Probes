@@ -186,6 +186,7 @@ def run_sae_eval(
                 "layer": layer,
                 "reg_type": reg_type,
                 "binarize": binarize,
+                "indices": top_by_average_diff.tolist(),
             }
         )
 
