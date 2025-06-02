@@ -1,4 +1,4 @@
-import pickle as pkl
+import json
 import warnings
 from dataclasses import asdict
 from pathlib import Path
@@ -40,7 +40,7 @@ def load_activations(path):
 
 
 # Normal setting functions
-def get_save_probe_path(
+def get_save_metrics_path(
     dataset: str,
     layer: int,
     reg_type: RegType,
@@ -85,7 +85,7 @@ def get_save_probe_path(
 
     save_path = (
         Path(sae_cache_path)
-        / f"sae_probes_{model_name}/{save_setting}_setting/{description_string}{extra_save_string}{reg_type_str}.pkl"
+        / f"sae_probes_{model_name}/{save_setting}_setting/{description_string}{extra_save_string}{reg_type_str}.json"
     )
     return save_path
 
@@ -197,7 +197,7 @@ def run_sae_eval(
 
         all_metrics.append(metrics)
 
-    save_path = get_save_probe_path(
+    save_path = get_save_metrics_path(
         dataset=dataset,
         layer=layer,
         reg_type=reg_type,
@@ -212,8 +212,8 @@ def run_sae_eval(
 
     print(f"Saving results to {save_path}")
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(save_path, "wb") as f:
-        pkl.dump(all_metrics, f)
+    with open(save_path, "w") as f:
+        json.dump(all_metrics, f, indent=4, ensure_ascii=False)
 
     return True
 
@@ -232,7 +232,7 @@ def run_sae_evals(
     for dataset in DATASETS:
         # Handle different settings
         if setting == "normal":
-            save_path = get_save_probe_path(
+            save_path = get_save_metrics_path(
                 dataset=dataset,
                 layer=layer,
                 reg_type=reg_type,
@@ -262,7 +262,7 @@ def run_sae_evals(
             for num_train in TRAIN_SIZES:
                 if num_train > DATASET_SIZES[dataset] - 100:
                     continue
-                save_path = get_save_probe_path(
+                save_path = get_save_metrics_path(
                     dataset=dataset,
                     layer=layer,
                     reg_type=reg_type,
@@ -292,7 +292,7 @@ def run_sae_evals(
                     assert success
         elif setting == "imbalance":
             for frac in FRACS:
-                save_path = get_save_probe_path(
+                save_path = get_save_metrics_path(
                     dataset=dataset,
                     layer=layer,
                     reg_type=reg_type,

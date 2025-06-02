@@ -1,4 +1,4 @@
-import pickle as pkl
+import json
 from pathlib import Path
 
 import pytest
@@ -6,7 +6,7 @@ from sae_lens import SAE
 from transformer_lens import HookedTransformer
 
 from sae_probes.constants import RegType, Setting
-from sae_probes.run_sae_evals import get_save_probe_path, run_sae_eval
+from sae_probes.run_sae_evals import get_save_metrics_path, run_sae_eval
 from tests.helpers import TEST_DATASET_NAME, generate_model_activations
 
 
@@ -37,7 +37,7 @@ def test_run_sae_eval_normal_setting(
     )
     assert success
 
-    expected_save_path: Path = get_save_probe_path(
+    expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
         layer=layer,
         reg_type=reg_type,
@@ -47,8 +47,8 @@ def test_run_sae_eval_normal_setting(
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"
 
-    with open(expected_save_path, "rb") as f:
-        results: list[dict] = pkl.load(f)
+    with open(expected_save_path) as f:
+        results: list[dict] = json.load(f)
 
     assert isinstance(results, list)
     assert len(results) == 4
@@ -101,7 +101,7 @@ def test_run_sae_eval_scarcity_setting(
     )
     assert success
 
-    expected_save_path: Path = get_save_probe_path(
+    expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
         layer=layer,
         reg_type=reg_type,
@@ -112,8 +112,8 @@ def test_run_sae_eval_scarcity_setting(
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"
 
-    with open(expected_save_path, "rb") as f:
-        results: list[dict] = pkl.load(f)
+    with open(expected_save_path) as f:
+        results: list[dict] = json.load(f)
 
     assert isinstance(results, list)
     assert len(results) == 2  # Matches the number of ks
@@ -168,7 +168,7 @@ def test_run_sae_eval_imbalance_setting(
     )
     assert success
 
-    expected_save_path: Path = get_save_probe_path(
+    expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
         layer=layer,
         reg_type=reg_type,
@@ -179,8 +179,8 @@ def test_run_sae_eval_imbalance_setting(
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"
 
-    with open(expected_save_path, "rb") as f:
-        results: list[dict] = pkl.load(f)
+    with open(expected_save_path) as f:
+        results: list[dict] = json.load(f)
 
     assert isinstance(results, list)
     assert len(results) == 2  # Matches the number of ks
