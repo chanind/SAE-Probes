@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sae_lens import HookedSAETransformer
+from transformer_lens import HookedTransformer
 
 from sae_probes.constants import DATA_PATH
 from sae_probes.generate_model_activations import generate_single_dataset_activations
@@ -10,7 +10,7 @@ TEST_DATASET_PATH = DATA_PATH / "cleaned_data" / f"{TEST_DATASET_NAME}.csv"
 
 
 def generate_model_activations(
-    model: HookedSAETransformer,
+    model: HookedTransformer,
     model_cache_path: Path,
     layers: list[int],
     dataset_path: Path = TEST_DATASET_PATH,

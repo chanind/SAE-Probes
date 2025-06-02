@@ -9,7 +9,12 @@ from sae_lens import SAE
 from sklearn.exceptions import ConvergenceWarning
 from tqdm import tqdm
 
-from sae_probes.constants import DEFAULT_SAE_CACHE_PATH, RegType, Setting
+from sae_probes.constants import (
+    DEFAULT_MODEL_CACHE_PATH,
+    DEFAULT_SAE_CACHE_PATH,
+    RegType,
+    Setting,
+)
 from sae_probes.generate_sae_activations import generate_sae_activations
 from sae_probes.utils_data import (
     get_class_imbalance,
@@ -121,7 +126,9 @@ def run_sae_eval(
     frac: float | None = None,
     device: str = "cuda",
     batch_size: int = 128,
+    ks: list[int] | None = None,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     activations = generate_sae_activations(
         sae=sae,
@@ -133,7 +140,7 @@ def run_sae_eval(
         num_train=num_train,
         frac=frac,
         batch_size=batch_size,
-        model_cache_path=sae_cache_path,
+        model_cache_path=model_cache_path,
     )
 
     X_train_sae = activations.X_train
@@ -142,10 +149,11 @@ def run_sae_eval(
     y_test = activations.y_test
 
     # Set k values based on setting
-    if setting == "normal":
-        ks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
-    else:
-        ks = [16, 128]
+    if ks is None:
+        if setting == "normal":
+            ks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+        else:
+            ks = [16, 128]
 
     all_metrics = []
     sorted_indices = get_sorted_indices_new(X_train_sae, y_train)
@@ -219,6 +227,7 @@ def run_sae_evals(
     setting: Setting,
     binarize: bool = False,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     for dataset in DATASETS:
         # Handle different settings
@@ -245,6 +254,7 @@ def run_sae_evals(
                     model_name,
                     binarize,
                     sae_cache_path=sae_cache_path,
+                    model_cache_path=model_cache_path,
                 )
                 assert success
         elif setting == "scarcity":
@@ -275,6 +285,7 @@ def run_sae_evals(
                         model_name,
                         num_train=num_train,
                         sae_cache_path=sae_cache_path,
+                        model_cache_path=model_cache_path,
                     )
                     assert success
         elif setting == "imbalance":
@@ -303,6 +314,7 @@ def run_sae_evals(
                         model_name=model_name,
                         frac=frac,
                         sae_cache_path=sae_cache_path,
+                        model_cache_path=model_cache_path,
                     )
                     assert success
         else:
