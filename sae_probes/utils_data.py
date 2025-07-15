@@ -204,13 +204,13 @@ def get_training_sizes():
     points = np.unique(
         np.round(np.logspace(min_size, max_size, num=num_points, base=2)).astype(int)
     )
-    return points
+    return points.tolist()
 
 
 def get_class_imbalance():
     min_size, max_size, num_points = 0.05, 0.95, 19
     points = np.linspace(min_size, max_size, num=num_points)
-    return points
+    return points.tolist()
 
 
 def get_classimabalance_num_train(
@@ -247,7 +247,7 @@ def corrupt_ytrain(ytrain, frac):
 def get_corrupt_frac():
     min_size, max_size, num_points = 0, 0.5, 11
     points = np.linspace(min_size, max_size, num=num_points)
-    return points
+    return points.tolist()
 
 
 def get_OOD_datasets(translation: bool = True) -> list[str]:

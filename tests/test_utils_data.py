@@ -193,16 +193,16 @@ def test_get_classimabalance_num_train():
 
 def test_get_training_sizes():
     sizes = get_training_sizes()
-    assert isinstance(sizes, np.ndarray)
+    assert isinstance(sizes, list)
     assert len(sizes) > 0
-    assert np.all(sizes >= 2**1)  # min_size = 1
-    assert np.all(sizes <= 2**10)  # max_size = 10
+    assert all(size >= 2**1 for size in sizes)  # min_size = 1
+    assert all(size <= 2**10 for size in sizes)  # max_size = 10
     assert len(np.unique(sizes)) == len(sizes)  # all points should be unique
 
 
 def test_get_class_imbalance():
     points = get_class_imbalance()
-    assert isinstance(points, np.ndarray)
+    assert isinstance(points, list)
     assert len(points) == 19
     assert np.min(points) == 0.05
     assert np.max(points) == 0.95
@@ -241,7 +241,7 @@ def test_corrupt_ytrain_all_same_initial():
 
 def test_get_corrupt_frac():
     fracs = get_corrupt_frac()
-    assert isinstance(fracs, np.ndarray)
+    assert isinstance(fracs, list)
     assert len(fracs) == 11
     assert np.min(fracs) == 0.0
     assert np.max(fracs) == 0.5

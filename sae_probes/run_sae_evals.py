@@ -242,7 +242,11 @@ def run_sae_evals(
                 setting=setting,
                 sae_cache_path=sae_cache_path,
             )
-            if not save_path.exists():
+            if save_path.exists():
+                print(
+                    f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, setting {setting}"
+                )
+            else:
                 print(
                     f"Running probe for dataset {dataset}, layer {layer}, reg_type {reg_type}, setting {setting}"
                 )
@@ -273,7 +277,11 @@ def run_sae_evals(
                     num_train=num_train,
                     sae_cache_path=sae_cache_path,
                 )
-                if not save_path.exists():
+                if save_path.exists():
+                    print(
+                        f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                    )
+                else:
                     print(
                         f"Running probe for dataset {dataset}, layer {layer}, "
                         f"reg_type {reg_type}, num_train {num_train}, setting {setting}"
@@ -303,7 +311,11 @@ def run_sae_evals(
                     frac=frac,
                     sae_cache_path=sae_cache_path,
                 )
-                if not save_path.exists():
+                if save_path.exists():
+                    print(
+                        f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                    )
+                else:
                     print(
                         f"Running probe for dataset {dataset}, layer {layer}, "
                         f"reg_type {reg_type}, frac {frac}, setting {setting}"
