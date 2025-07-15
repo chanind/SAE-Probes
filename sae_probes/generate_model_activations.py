@@ -142,6 +142,7 @@ def generate_dataset_activations(
     batch_size: int = 32,
     OOD: bool = False,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model: HookedTransformer | None = None,
 ):
     os.makedirs(
         Path(model_cache_path)
@@ -150,7 +151,10 @@ def generate_dataset_activations(
     )
 
     # Load the model
-    model = HookedTransformer.from_pretrained_no_processing(model_name, device=device)
+    if model is None:
+        model = HookedTransformer.from_pretrained_no_processing(
+            model_name, device=device
+        )
 
     if OOD:
         dataset_paths = glob.glob(str(DATA_PATH / "OOD data" / "*.csv"))
