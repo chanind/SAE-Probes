@@ -53,7 +53,7 @@ run_sae_evals(
    layer=12,
    reg_type="l1",
    setting="normal",
-   sae_cache_path="/results/output/path,
+   sae_cache_path="/results/output/path",
    model_cache_path="/path/to/saved/activations",
    ks=[1, 16],
 )
