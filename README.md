@@ -1,51 +1,79 @@
 # Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
 
-<img width="1213" alt="Screenshot 2025-02-24 at 9 58 54 PM" src="https://github.com/user-attachments/assets/09a20f0b-9f45-4382-b6c2-e70bba6c17db" />
+This repository conains the code for the paper [_Are Sparse Autoencoders Useful? A Case Study in Sparse Probing_](https://arxiv.org/pdf/2502.16681), but has been reformatted into a Python package that will work with any residual stream SAE that can be loaded in [SAELens](https://github.com/jbloomAus/SAELens). This makes it easy to use the sparse probing tasks from the paper as a standalone SAE benchmark.
 
-This repository contains code to replicate experiments from our paper [_Are Sparse Autoencoders Useful? A Case Study in Sparse Probing_](https://arxiv.org/pdf/2502.16681). The workflow of our code involves three primary stages. Each part should be mostly executable independently from artifacts we make available:
-
-1. **Generating Model and SAE Activations:**
-
-   - Model activations for probing datasets are generated in `generate_model_activations.py`
-   - SAE activations are generated in `generate_sae_activations.py`. Because of CUDA memory leakage, we rerun the script for every SAE, we do this in `save_sae_acts_and_train_probes.sh`, which should work if you just run it.
-   - OOD regime activations are specifically generated in `plot_ood.ipynb`.
-   - Mutli-token activations are specifically generated in `generate_model_and_sae_multi_token_acts.py`. Caution: this will take up a lot of memory (~1TB).
-
-2. **Training Probes:**
-
-   - Baseline probes are trained using `run_baselines.py`. This script also includes additional functions for OOD experiments related to probe pruning and latent interpretability (see Sections 4.1 and 4.2 of the paper).
-   - SAE probes are trained using `train_sae_probes.py`. Sklearn regression is most efficient when run in a single thread, and then many of those threads can be run in parallel. We do this in `save_sae_acts_and_train_probes.sh`.
-   - Multi token SAE probes and baseline probes are trained using `run_multi_token_acts.py`.
-   - Combining all results into csvs after they are done is done with `combine_results.py`.
-
-3. **Visualizing Results:**
-   - Standard condition plots: `plot_normal.ipynb`
-   - Data scarcity, class imbalance, and corrupted data regimes: `plot_combined.ipynb`
-   - OOD plots: `plot_ood.ipynb`
-   - Llama-3.1-8B results replication: `plot_llama.ipynb`
-   - GLUE CoLA and AIMade investigations (Sections 4.3.1 and 4.3.2): `dataset_investigations/`
-   - AI vs. human final token plots: `ai_vs_humanmade_plot.py`
-   - SAE architectural improvements (Section 6): `sae_improvement.ipynb`
-   - Multi token: `plot_multi_token.py`
-   - K vs. AUC plot broken down by dataset (in appendix): `k_vs_auc_plot.py`
-
-Note that these should all be runnable as is from the results data in the repo.
-
-### Datasets
-
-- **Raw Text Datasets:** Accessible via [Dropbox link](https://www.dropbox.com/scl/fo/lvajx9100jsy3h9cvis7q/AIocXXICIwHsz-HsXSekC3Y?rlkey=tq7td61h1fufm01cbdu2oqsb5&st=aorlnph5&dl=0). Note that datasets 161-163 are modified from their source. An error in our formatting reframes them as differentiating between news headlines and code samples.
-- **Model Activations:** Also stored on Dropbox (Note: Files are large).
-
-## Requirements
-
-We recommend you create a new python venv named probing and install required packages with pip:
+# Installation
 
 ```
-python -m venv probing
-source probing/bin/activate
-pip install transformer_lens sae_lens transformers datasets torch xgboost sae_bench scikit-learn natsort
+pip install git+https://github.com/chanind/SAE-Probes.git@package2
 ```
 
-Let us know if anything does not work with this environment!
+# Running evaluations
 
-For any questions or clarifications, please open an issue or reach out to us!
+The process of running evaluations is split into two parts: generating and saving LLM model activations, and then running sparse probing on those activations.
+
+## Generating Model Activations
+
+The main method for generating model activations is `generate_dataset_activations`, demonstrated below:
+
+```python
+from sae_probes import generate_dataset_activations
+
+generate_dataset_activations(
+   model_name="gemma-2-2b", # the TransformerLens name of the model
+   layers=[12], # Layers to extract activations from (will use hook_resid_post)
+   batch_size=64,
+   device="cuda",
+   model_cache_path="/path/to/save/activations",
+)
+```
+
+This must be run before any probing evals can be run, as these activations are used both for SAE evals and baseline evals. Importantly, the `model_cache_path` must be the same when train probes.
+
+## Training Probes
+
+Probes can be trained directly on the model activations (baselines) or on SAE activations. In both cases, the following test data-balance settings are available: `"normal"`, `"scarcity"`, and `"imbalance"`. For more details about these settings, see the original paper. For the most standard sparse-probing benchmark, use the `normal` setting.
+
+### SAE Probes
+
+The most standard use of this library is as a sparse probing benchmark for SAEs using the `normal` setting. This is demonstrated below:
+
+```python
+from sae_probes import run_sae_evals
+from sae_lens import SAE
+
+# run the benchmark on a Gemma Scope SAE
+release = "gemma-scope-2b-pt-res-canonical"
+sae_id = "layer_12/width_16k/canonical"
+sae = SAE.from_pretrained(release, sae_id)[0]
+
+run_sae_evals(
+   sae=sae,
+   model_name="gemma-2-2b",
+   layer=12,
+   reg_type="l1",
+   setting="normal",
+   sae_cache_path="/results/output/path,
+   model_cache_path="/path/to/saved/activations",
+   ks=[1, 16],
+)
+```
+
+The sparse probing results for each dataset will be saved to `sae_cache_path` as a JSON file per dataset.
+
+### Baseline Probes
+
+The baseline probes can be run using the functions `run_all_baseline_normal`, `run_all_baseline_scarcity`, `run_all_baseline_corrupt`, and `run_all_baseline_class_imbalance`. These functions will run the baseline probes for all datasets and methods, and save the results to the `results_path` directory. Using the `run_all_baseline_normal` function is demonstrated below:
+
+```python
+from sae_probes import run_all_baseline_normal
+
+run_all_baseline_normal(
+   model_name="gemma-2-2b",
+   layer=12,
+   results_path="/results/output/path",
+   model_cache_path="/path/to/saved/activations",
+)
+```
+
+The baseline probes will be saved to `results_path` as a CSV file per dataset.

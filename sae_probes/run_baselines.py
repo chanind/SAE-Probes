@@ -56,7 +56,7 @@ FUNCTIONS FOR STANDARD CONDITIONS
 def run_baseline_dataset_layer(
     layer: int,
     numbered_dataset: str,
-    method_name: str,
+    method_name: Method,
     model_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
@@ -118,37 +118,6 @@ def run_all_baseline_normal(
             )
 
 
-def coalesce_all_baseline_normal(
-    model_name: str,
-    layer: int,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-    methods: Sequence[Method] = DEFAULT_METHODS,
-):
-    # takes individual csvs and makes it into one big csv
-    all_results = []
-    for dataset in DATASETS:
-        for method_name in methods:
-            savepath = (
-                Path(results_path)
-                / f"baseline_results_{model_name}/normal/allruns/layer{layer}_{dataset}_{method_name}.csv"
-            )
-            if os.path.exists(savepath):
-                df = pd.read_csv(savepath)
-                all_results.append(df)
-            else:
-                print(f"Missing file {layer}, {method_name}, {dataset}")
-                # raise ValueError(f'Missing file {layer}, {method_name}, {dataset}')
-
-    if all_results:
-        combined_df = pd.concat(all_results, ignore_index=True)
-        layer_savepath = (
-            Path(results_path)
-            / f"baseline_probes_{model_name}/normal_settings/layer{layer}_results.csv"
-        )
-        os.makedirs(os.path.dirname(layer_savepath), exist_ok=True)
-        combined_df.to_csv(layer_savepath, index=False)
-
-
 """
 FUNCTIONS FOR DATA SCARCITY CONDITION
 """
@@ -157,7 +126,7 @@ FUNCTIONS FOR DATA SCARCITY CONDITION
 def run_baseline_scarcity(
     num_train: int,
     numbered_dataset: str,
-    method_name: str,
+    method_name: Method,
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
@@ -228,55 +197,6 @@ def run_all_baseline_scarcity(
                 )
 
 
-def coalesce_all_scarcity(
-    model_name: str,
-    layer: int,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-    methods: Sequence[Method] = DEFAULT_METHODS,
-):
-    # takes individual csvs and makes it into one big csv
-    all_results = []
-    train_sizes = get_training_sizes()
-
-    # Create directories if they don't exist
-    dataset_path = (
-        Path(results_path) / f"baseline_results_{model_name}/scarcity/by_dataset"
-    )
-    allpath = Path(results_path) / f"baseline_probes_{model_name}/scarcity/"
-    os.makedirs(dataset_path, exist_ok=True)
-    os.makedirs(allpath, exist_ok=True)
-
-    for dataset in DATASETS:
-        dataset_results = []
-        for num_train in train_sizes:
-            for method_name in methods:
-                savepath = (
-                    Path(results_path)
-                    / f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{dataset}_{method_name}_numtrain{num_train}.csv"
-                )
-                if os.path.exists(savepath):
-                    df = pd.read_csv(savepath)
-                    dataset_results.append(df)
-                    all_results.append(df)
-                else:
-                    if num_train + 100 <= DATASET_SIZES[dataset]:
-                        raise ValueError(
-                            f"Missing file {method_name}, {dataset} ({num_train}/{DATASET_SIZES[dataset]})"
-                        )
-
-        # Save dataset-specific results
-        if dataset_results:
-            dataset_df = pd.concat(dataset_results, ignore_index=True)
-            dataset_savepath = dataset_path / f"{dataset}.csv"
-            dataset_df.to_csv(dataset_savepath, index=False)
-
-    # Save combined results
-    if all_results:
-        combined_df = pd.concat(all_results, ignore_index=True)
-        summary_savepath = allpath / "all_results.csv"
-        combined_df.to_csv(summary_savepath, index=False)
-
-
 """
 FUNCTIONS FOR CLASS IMBALANCE CONDITION
 """
@@ -285,7 +205,7 @@ FUNCTIONS FOR CLASS IMBALANCE CONDITION
 def run_baseline_class_imbalance(
     dataset_frac: float,
     numbered_dataset: str,
-    method_name: str,
+    method_name: Method,
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
@@ -362,53 +282,6 @@ def run_all_baseline_class_imbalance(
                 )
 
 
-def coalesce_all_imbalance(
-    model_name: str,
-    layer: int,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-    methods: Sequence[Method] = DEFAULT_METHODS,
-):
-    # takes individual csvs and makes it into one big csv
-    all_results = []
-    # Create directories if they don't exist
-    dataset_path = (
-        Path(results_path) / f"baseline_results_{model_name}/imbalance/by_dataset"
-    )
-    allpath = Path(results_path) / f"baseline_probes_{model_name}/imbalance"
-    os.makedirs(dataset_path, exist_ok=True)
-    os.makedirs(allpath, exist_ok=True)
-    fracs = get_class_imbalance()
-    i = 0
-    for dataset in DATASETS:
-        dataset_results = []
-        for frac in fracs:
-            for method_name in methods:
-                frac = round(frac * 20) / 20
-                savepath = (
-                    Path(results_path)
-                    / f"baseline_results_{model_name}/imbalance/allruns/layer{layer}_{dataset}_{method_name}_frac{frac}.csv"
-                )
-                if os.path.exists(savepath):
-                    df = pd.read_csv(savepath)
-                    dataset_results.append(df)
-                    all_results.append(df)
-                else:
-                    i += 1
-                    # raise ValueError(f'Missing file {savepath}, {dataset} ({frac}/{dataset_sizes[dataset]})')
-                    # print(f'Missing file {method_name}, {dataset} ({num_train}/{dataset_sizes[dataset]})')
-
-        # Save dataset-specific results
-        if dataset_results:
-            dataset_df = pd.concat(dataset_results, ignore_index=True)
-            dataset_savepath = dataset_path / f"{dataset}.csv"
-            dataset_df.to_csv(dataset_savepath, index=False)
-    # Save combined results
-    if all_results:
-        combined_df = pd.concat(all_results, ignore_index=True)
-        summary_savepath = allpath / "all_results.csv"
-        combined_df.to_csv(summary_savepath, index=False)
-
-
 """
 FUNCTIONS FOR CORRUPT CONDITIONS
 """
@@ -417,7 +290,7 @@ FUNCTIONS FOR CORRUPT CONDITIONS
 def run_baseline_corrupt(
     corrupt_frac: float,
     numbered_dataset: str,
-    method_name: str,
+    method_name: Method,
     model_name: str,
     layer: int,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
@@ -472,69 +345,19 @@ def run_all_baseline_corrupt(
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_corrupt_frac()
-    for method_name in ["logreg"]:  # This loop is not tqdm wrapped by default
-        # You could add a print here if you want to see which method is being processed, e.g.:
-        # print(f"Processing corrupt baselines for method: {method_name}")
-        for frac in tqdm(fracs, desc=f"Corrupt Fracs ({method_name})", position=0):
-            for dataset in tqdm(
-                shuffled_datasets,
-                desc=f"Datasets ({method_name}, frac {frac:.2f})",
-                position=1,
-                leave=False,
-            ):
-                run_baseline_corrupt(
-                    frac,
-                    dataset,
-                    method_name,
-                    model_name=model_name,
-                    layer=layer,
-                    results_path=results_path,
-                    model_cache_path=model_cache_path,
-                )
-
-
-def coalesce_all_corrupt(
-    model_name: str,
-    layer: int,
-    results_path: str | Path = DEFAULT_RESULTS_PATH,
-):
-    # takes individual csvs and makes it into one big csv
-    all_results = []
-    # Create directories if they don't exist
-    dataset_path = (
-        Path(results_path) / f"baseline_results_{model_name}/corrupt/by_dataset"
-    )
-    allpath = Path(results_path) / f"baseline_probes_{model_name}/corrupt"
-    os.makedirs(dataset_path, exist_ok=True)
-    os.makedirs(allpath, exist_ok=True)
-    fracs = get_corrupt_frac()
-    for dataset in DATASETS:
-        dataset_results = []
-        for frac in fracs:
-            for method_name in ["logreg"]:
-                frac = round(frac * 20) / 20
-                savepath = (
-                    Path(results_path)
-                    / f"baseline_results_{model_name}/corrupt/allruns/layer{layer}_{dataset}_{method_name}_corrupt{frac}.csv"
-                )
-                if os.path.exists(savepath):
-                    df = pd.read_csv(savepath)
-                    dataset_results.append(df)
-                    all_results.append(df)
-                else:
-                    raise ValueError(
-                        f"Missing file {method_name}, {dataset} ({frac}/{DATASET_SIZES[dataset]})"
-                    )
-                    # print(f'Missing file {method_name}, {dataset} ({num_train}/{dataset_sizes[dataset]})')
-
-        # Save dataset-specific results
-        if dataset_results:
-            dataset_df = pd.concat(dataset_results, ignore_index=True)
-            dataset_savepath = dataset_path / f"{dataset}.csv"
-            dataset_df.to_csv(dataset_savepath, index=False)
-
-    # Save combined results
-    if all_results:
-        combined_df = pd.concat(all_results, ignore_index=True)
-        summary_savepath = allpath / "all_results.csv"
-        combined_df.to_csv(summary_savepath, index=False)
+    for frac in tqdm(fracs, desc="Corrupt Fracs (logreg)", position=0):
+        for dataset in tqdm(
+            shuffled_datasets,
+            desc=f"Datasets (logreg, frac {frac:.2f})",
+            position=1,
+            leave=False,
+        ):
+            run_baseline_corrupt(
+                frac,
+                dataset,
+                method_name="logreg",
+                model_name=model_name,
+                layer=layer,
+                results_path=results_path,
+                model_cache_path=model_cache_path,
+            )
