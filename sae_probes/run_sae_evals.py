@@ -8,12 +8,8 @@ from sae_lens import SAE
 from sklearn.exceptions import ConvergenceWarning
 from tqdm import tqdm
 
-from sae_probes.constants import (
-    DEFAULT_MODEL_CACHE_PATH,
-    DEFAULT_SAE_CACHE_PATH,
-    RegType,
-    Setting,
-)
+from sae_probes.constants import DEFAULT_SAE_CACHE_PATH, RegType, Setting
+from sae_probes.generate_model_activations import ensure_dataset_activations
 from sae_probes.generate_sae_activations import generate_sae_activations
 from sae_probes.utils_data import (
     get_class_imbalance,
@@ -22,6 +18,7 @@ from sae_probes.utils_data import (
     get_numbered_binary_tags,
     get_training_sizes,
 )
+from sae_probes.utils_tmp import resolve_model_cache_path
 from sae_probes.utils_training import find_best_reg
 
 warnings.simplefilter("ignore", category=ConvergenceWarning)
@@ -119,6 +116,7 @@ def run_sae_eval(
     reg_type: RegType,
     setting: Setting,
     model_name: str,
+    model_cache_path: str | Path,
     binarize: bool = False,
     num_train: int | None = None,
     corrupt_frac: float | None = None,
@@ -127,7 +125,6 @@ def run_sae_eval(
     batch_size: int = 128,
     ks: list[int] | None = None,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     activations = generate_sae_activations(
         sae=sae,
@@ -228,45 +225,19 @@ def run_sae_evals(
     ks: list[int] | None = None,
     binarize: bool = False,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path | None = None,
 ):
-    for dataset in DATASETS:
-        # Handle different settings
-        if setting == "normal":
-            save_path = get_save_metrics_path(
-                dataset=dataset,
-                hook_name=hook_name,
-                reg_type=reg_type,
-                binarize=binarize,
-                model_name=model_name,
-                setting=setting,
-                sae_cache_path=sae_cache_path,
-            )
-            if save_path.exists():
-                print(
-                    f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
-                )
-            else:
-                print(
-                    f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
-                )
-                success = run_sae_eval(
-                    sae,
-                    dataset,
-                    hook_name,
-                    reg_type,
-                    setting,
-                    model_name,
-                    binarize,
-                    ks=ks,
-                    sae_cache_path=sae_cache_path,
-                    model_cache_path=model_cache_path,
-                )
-                assert success
-        elif setting == "scarcity":
-            for num_train in TRAIN_SIZES:
-                if num_train > DATASET_SIZES[dataset] - 100:
-                    continue
+    with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
+        ensure_dataset_activations(
+            model_name=model_name,
+            dataset_short_names=DATASETS,
+            hook_names=[hook_name],
+            model_cache_path=resolved_cache_path,
+            device="cpu",
+        )
+        for dataset in DATASETS:
+            # Handle different settings
+            if setting == "normal":
                 save_path = get_save_metrics_path(
                     dataset=dataset,
                     hook_name=hook_name,
@@ -274,62 +245,96 @@ def run_sae_evals(
                     binarize=binarize,
                     model_name=model_name,
                     setting=setting,
-                    num_train=num_train,
                     sae_cache_path=sae_cache_path,
                 )
                 if save_path.exists():
                     print(
-                        f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}, num_train {num_train}"
+                        f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
                     )
                 else:
                     print(
-                        f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, num_train {num_train}, setting {setting}"
+                        f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
                     )
                     success = run_sae_eval(
-                        sae,
-                        dataset,
-                        hook_name,
-                        reg_type,
-                        setting,
-                        model_name,
-                        num_train=num_train,
-                        ks=ks,
-                        sae_cache_path=sae_cache_path,
-                        model_cache_path=model_cache_path,
-                    )
-                    assert success
-        elif setting == "imbalance":
-            for frac in FRACS:
-                save_path = get_save_metrics_path(
-                    dataset=dataset,
-                    hook_name=hook_name,
-                    reg_type=reg_type,
-                    binarize=binarize,
-                    model_name=model_name,
-                    setting=setting,
-                    frac=frac,
-                    sae_cache_path=sae_cache_path,
-                )
-                if save_path.exists():
-                    print(
-                        f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
-                    )
-                else:
-                    print(
-                        f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
-                    )
-                    success = run_sae_eval(
-                        sae,
-                        dataset,
-                        hook_name,
+                        sae=sae,
+                        dataset=dataset,
+                        hook_name=hook_name,
                         reg_type=reg_type,
                         setting=setting,
                         model_name=model_name,
-                        frac=frac,
+                        model_cache_path=resolved_cache_path,
+                        binarize=binarize,
                         ks=ks,
                         sae_cache_path=sae_cache_path,
-                        model_cache_path=model_cache_path,
                     )
                     assert success
-        else:
-            raise ValueError(f"Invalid setting: {setting}")
+            elif setting == "scarcity":
+                for num_train in TRAIN_SIZES:
+                    if num_train > DATASET_SIZES[dataset] - 100:
+                        continue
+                    save_path = get_save_metrics_path(
+                        dataset=dataset,
+                        hook_name=hook_name,
+                        reg_type=reg_type,
+                        binarize=binarize,
+                        model_name=model_name,
+                        setting=setting,
+                        num_train=num_train,
+                        sae_cache_path=sae_cache_path,
+                    )
+                    if save_path.exists():
+                        print(
+                            f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}, num_train {num_train}"
+                        )
+                    else:
+                        print(
+                            f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, num_train {num_train}, setting {setting}"
+                        )
+                        success = run_sae_eval(
+                            sae=sae,
+                            dataset=dataset,
+                            hook_name=hook_name,
+                            reg_type=reg_type,
+                            setting=setting,
+                            model_name=model_name,
+                            model_cache_path=resolved_cache_path,
+                            num_train=num_train,
+                            ks=ks,
+                            sae_cache_path=sae_cache_path,
+                        )
+                        assert success
+            elif setting == "imbalance":
+                for frac in FRACS:
+                    save_path = get_save_metrics_path(
+                        dataset=dataset,
+                        hook_name=hook_name,
+                        reg_type=reg_type,
+                        binarize=binarize,
+                        model_name=model_name,
+                        setting=setting,
+                        frac=frac,
+                        sae_cache_path=sae_cache_path,
+                    )
+                    if save_path.exists():
+                        print(
+                            f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                        )
+                    else:
+                        print(
+                            f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                        )
+                        success = run_sae_eval(
+                            sae=sae,
+                            dataset=dataset,
+                            hook_name=hook_name,
+                            reg_type=reg_type,
+                            setting=setting,
+                            model_name=model_name,
+                            model_cache_path=resolved_cache_path,
+                            frac=frac,
+                            ks=ks,
+                            sae_cache_path=sae_cache_path,
+                        )
+                        assert success
+            else:
+                raise ValueError(f"Invalid setting: {setting}")

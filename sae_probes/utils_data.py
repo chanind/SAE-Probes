@@ -8,7 +8,8 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
 
-from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
+from sae_probes.constants import DATA_PATH
+from sae_probes.generate_model_activations import ensure_dataset_activations
 
 
 # DATA UTILS
@@ -56,8 +57,16 @@ def get_xvals(
     numbered_dataset_tag: str,
     hook_name: str,
     model_name: str,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path,
 ):
+    # Ensure activations exist for this dataset/hook
+    ensure_dataset_activations(
+        model_name=model_name,
+        dataset_short_names=[numbered_dataset_tag],
+        hook_names=[hook_name],
+        model_cache_path=model_cache_path,
+        device="cpu",
+    )
     fname = (
         Path(model_cache_path)
         / f"model_activations_{model_name}/{numbered_dataset_tag}_{hook_name}.pt"
@@ -70,7 +79,7 @@ def get_xyvals(
     numbered_dataset_tag: str,
     hook_name: str,
     model_name: str,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path,
     MAX_AMT: int = 1500,
 ):
     xvals = get_xvals(numbered_dataset_tag, hook_name, model_name, model_cache_path)
@@ -121,11 +130,11 @@ def get_xy_traintest_specify(
     numbered_dataset_tag: str,
     hook_name: str,
     model_name: str,
+    model_cache_path: str | Path,
     pos_ratio: float = 0.5,
     MAX_AMT: int = 5000,
     seed: int = 42,
     num_test: int | None = None,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X, y = get_xyvals(
         numbered_dataset_tag,
@@ -155,19 +164,19 @@ def get_xy_traintest(
     numbered_dataset_tag: str,
     hook_name: str,
     model_name: str,
+    model_cache_path: str | Path,
     MAX_AMT: int = 5000,
     seed: int = 42,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
         numbered_dataset_tag,
         hook_name,
         model_name,
+        model_cache_path=model_cache_path,
         pos_ratio=0.5,
         MAX_AMT=MAX_AMT,
         seed=seed,
-        model_cache_path=model_cache_path,
     )
     return X_train, y_train, X_test, y_test
 
@@ -264,8 +273,16 @@ def get_xy_OOD(
     dataset: str,
     model_name: str,
     hook_name: str,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path,
 ):
+    ensure_dataset_activations(
+        model_name=model_name,
+        dataset_short_names=[dataset],
+        hook_names=[hook_name],
+        model_cache_path=model_cache_path,
+        device="cpu",
+        OOD=True,
+    )
     X = torch.load(
         Path(model_cache_path)
         / f"model_activations_{model_name}_OOD/{dataset}_OOD_{hook_name}.pt",
@@ -281,7 +298,7 @@ def get_OOD_traintest(
     dataset: str,
     model_name: str,
     hook_name: str,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path,
 ):
     X_train, y_train, _, _ = get_xy_traintest_specify(
         num_train=1024,
@@ -300,7 +317,7 @@ def get_OOD_traintest(
 def get_datasets(
     model_name: str,
     hook_name: str,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path,
 ):
     dataset_sizes = get_dataset_sizes()
     directory = Path(model_cache_path) / f"model_activations_{model_name}"

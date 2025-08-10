@@ -11,14 +11,19 @@ def get_xy_OOD_sae(
     dataset: str,
     model_name: str,
     hook_name: str,
+    model_cache_path: str | Path,
     k: int = 128,
     return_indices: bool = False,
     num_train: int = 1024,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
-    _, y_test = get_xy_OOD(dataset, model_name, hook_name)
+    _, y_test = get_xy_OOD(dataset, model_name, hook_name, model_cache_path)
     _, y_train = get_xyvals(
-        dataset, hook_name=hook_name, model_name=model_name, MAX_AMT=1500
+        dataset,
+        hook_name=hook_name,
+        model_name=model_name,
+        model_cache_path=model_cache_path,
+        MAX_AMT=1500,
     )
     X_test = (
         torch.load(

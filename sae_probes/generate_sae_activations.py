@@ -6,10 +6,7 @@ import torch
 from sae_lens import SAE
 from sklearn.exceptions import ConvergenceWarning
 
-from sae_probes.constants import (
-    DEFAULT_MODEL_CACHE_PATH,
-    Setting,
-)
+from sae_probes.constants import Setting
 from sae_probes.utils_data import (
     get_classimabalance_num_train,
     get_dataset_sizes,
@@ -52,8 +49,8 @@ def generate_sae_activations_normal(
     hook_name: str,
     model_name: str,
     device: str,
+    model_cache_path: str | Path,
     batch_size: int = 128,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ) -> Activations:
     size = DATASET_SIZES[dataset]
     num_train = min(size - 100, 1024)
@@ -93,8 +90,8 @@ def generate_sae_activations_scarcity(
     model_name: str,
     device: str,
     num_train: int,
+    model_cache_path: str | Path,
     batch_size: int = 128,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ) -> Activations:
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
@@ -132,8 +129,8 @@ def generate_sae_activations_imbalance(
     model_name: str,
     device: str,
     frac: float,
+    model_cache_path: str | Path,
     batch_size: int = 128,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ) -> Activations:
     """Generate and save SAE activations for class imbalance setting"""
     num_train, num_test = get_classimabalance_num_train(dataset)
@@ -176,8 +173,8 @@ def generate_sae_activations(
     device: str,
     num_train: int | None,
     frac: float | None,
+    model_cache_path: str | Path,
     batch_size: int = 128,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ) -> Activations:
     if setting == "normal":
         return generate_sae_activations_normal(

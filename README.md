@@ -8,27 +8,27 @@ This repository conains the code for the paper [_Are Sparse Autoencoders Useful?
 pip install git+https://github.com/chanind/SAE-Probes.git@package2
 ```
 
-# Running evaluations
+## Running evaluations
 
-The process of running evaluations is split into two parts: generating and saving LLM model activations, and then running sparse probing on those activations.
+You can run benchmarks directly; any missing model activations are generated on demand. If you don't pass a `model_cache_path`, a temporary directory is used and cleaned up when the function completes. To persist activations across runs (recommended for repeated experiments), provide a `model_cache_path`.
 
-## Generating Model Activations
+### Optional: Pre-generating model activations
 
-The main method for generating model activations is `generate_dataset_activations`, demonstrated below:
+Pre-generating can speed up repeated runs and lets you inspect the saved tensors. It's optional because benchmarks will auto-generate missing activations.
 
 ```python
 from sae_probes import generate_dataset_activations
 
 generate_dataset_activations(
-   model_name="gemma-2-2b", # the TransformerLens name of the model
-   hook_names=["blocks.12.hook_resid_post"], # Any TLens hook names
-   batch_size=64,
-   device="cuda",
-   model_cache_path="/path/to/save/activations",
+  model_name="gemma-2-2b", # the TransformerLens name of the model
+  hook_names=["blocks.12.hook_resid_post"], # Any TLens hook names
+  batch_size=64,
+  device="cuda",
+  model_cache_path="/path/to/save/activations",
 )
 ```
 
-This must be run before any probing evals can be run, as these activations are used both for SAE evals and baseline evals. Importantly, the `model_cache_path` must be the same when train probes.
+If you skip pre-generation, the benchmarks will create any missing activations automatically. Passing a `model_cache_path` persists them; if omitted, activations will be written to a temporary directory that is deleted after the run.
 
 ## Training Probes
 
@@ -48,14 +48,15 @@ sae_id = "layer_12/width_16k/canonical"
 sae = SAE.from_pretrained(release, sae_id)[0]
 
 run_sae_evals(
-   sae=sae,
-   model_name="gemma-2-2b",
-   hook_name="blocks.12.hook_resid_post",
-   reg_type="l1",
-   setting="normal",
-   sae_cache_path="/results/output/path",
-   model_cache_path="/path/to/saved/activations",
-   ks=[1, 16],
+  sae=sae,
+  model_name="gemma-2-2b",
+  hook_name="blocks.12.hook_resid_post",
+  reg_type="l1",
+  setting="normal",
+  sae_cache_path="/results/output/path",
+  # model_cache_path is optional; if omitted, a temp dir is used and cleaned
+  model_cache_path="/path/to/saved/activations",
+  ks=[1, 16],
 )
 ```
 
@@ -69,10 +70,11 @@ The baseline probes can be run using the functions `run_all_baseline_normal`, `r
 from sae_probes import run_all_baseline_normal
 
 run_all_baseline_normal(
-   model_name="gemma-2-2b",
-   hook_name="blocks.12.hook_resid_post",
-   results_path="/results/output/path",
-   model_cache_path="/path/to/saved/activations",
+  model_name="gemma-2-2b",
+  hook_name="blocks.12.hook_resid_post",
+  results_path="/results/output/path",
+  # model_cache_path is optional; if omitted, a temp dir is used and cleaned
+  model_cache_path="/path/to/saved/activations",
 )
 ```
 

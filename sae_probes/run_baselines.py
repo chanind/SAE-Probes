@@ -9,11 +9,9 @@ import pandas as pd
 import torch
 from tqdm.auto import tqdm
 
-from sae_probes.constants import (
-    DEFAULT_MODEL_CACHE_PATH,
-    DEFAULT_RESULTS_PATH,
-)
+from sae_probes.constants import DEFAULT_RESULTS_PATH
 
+from .generate_model_activations import ensure_dataset_activations
 from .utils_data import (
     corrupt_ytrain,
     get_class_imbalance,
@@ -26,6 +24,7 @@ from .utils_data import (
     get_xy_traintest,
     get_xy_traintest_specify,
 )
+from .utils_tmp import resolve_model_cache_path
 from .utils_training import (
     BestClassifierResults,
     find_best_knn,
@@ -58,8 +57,8 @@ def run_baseline_dataset_layer(
     numbered_dataset: str,
     method_name: Method,
     model_name: str,
+    model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     safe_hook = hook_name.replace("/", "-")
     base_path = f"baseline_results_{model_name}/normal/allruns/{safe_hook}_{numbered_dataset}_{method_name}"
@@ -98,25 +97,38 @@ def run_all_baseline_normal(
     model_name: str,
     hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path | None = None,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
-    shuffled_datasets = get_datasets(
-        model_name, hook_name=hook_name, model_cache_path=model_cache_path
-    ).copy()
-    np.random.shuffle(shuffled_datasets)
-    for method_name in tqdm(methods, desc="Methods", position=0):
-        for dataset in tqdm(
-            shuffled_datasets, desc=f"{method_name} Datasets", position=1, leave=False
-        ):
-            run_baseline_dataset_layer(
-                hook_name,
-                dataset,
-                method_name,
-                model_name=model_name,
-                results_path=results_path,
-                model_cache_path=model_cache_path,
-            )
+    with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
+        # Ensure all activations exist
+        ensure_dataset_activations(
+            model_name=model_name,
+            dataset_short_names=DATASETS,
+            hook_names=[hook_name],
+            model_cache_path=resolved_cache_path,
+            device="cpu",
+        )
+
+        shuffled_datasets = get_datasets(
+            model_name, hook_name=hook_name, model_cache_path=resolved_cache_path
+        ).copy()
+        np.random.shuffle(shuffled_datasets)
+        for method_name in tqdm(methods, desc="Methods", position=0):
+            for dataset in tqdm(
+                shuffled_datasets,
+                desc=f"{method_name} Datasets",
+                position=1,
+                leave=False,
+            ):
+                run_baseline_dataset_layer(
+                    hook_name,
+                    dataset,
+                    method_name,
+                    model_name=model_name,
+                    results_path=results_path,
+                    model_cache_path=resolved_cache_path,
+                )
 
 
 """
@@ -130,8 +142,8 @@ def run_baseline_scarcity(
     method_name: Method,
     model_name: str,
     hook_name: str,
+    model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     safe_hook = hook_name.replace("/", "-")
     base_path = f"baseline_results_{model_name}/scarcity/allruns/{safe_hook}_{numbered_dataset}_{method_name}_numtrain{num_train}"
@@ -170,33 +182,42 @@ def run_all_baseline_scarcity(
     model_name: str,
     hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path | None = None,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
-    shuffled_datasets = get_datasets(
-        model_name, hook_name=hook_name, model_cache_path=model_cache_path
-    ).copy()
-    np.random.shuffle(shuffled_datasets)
-    train_sizes = get_training_sizes()
-    for method_name in tqdm(methods, desc="Methods", position=0):
-        for train in tqdm(
-            train_sizes, desc=f"{method_name} Train Sizes", position=1, leave=False
-        ):
-            for dataset in tqdm(
-                shuffled_datasets,
-                desc=f"{method_name} ({train}) Datasets",
-                position=2,
-                leave=False,
+    with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
+        ensure_dataset_activations(
+            model_name=model_name,
+            dataset_short_names=DATASETS,
+            hook_names=[hook_name],
+            model_cache_path=resolved_cache_path,
+            device="cpu",
+        )
+
+        shuffled_datasets = get_datasets(
+            model_name, hook_name=hook_name, model_cache_path=resolved_cache_path
+        ).copy()
+        np.random.shuffle(shuffled_datasets)
+        train_sizes = get_training_sizes()
+        for method_name in tqdm(methods, desc="Methods", position=0):
+            for train in tqdm(
+                train_sizes, desc=f"{method_name} Train Sizes", position=1, leave=False
             ):
-                run_baseline_scarcity(
-                    train,
-                    dataset,
-                    method_name,
-                    model_name=model_name,
-                    hook_name=hook_name,
-                    results_path=results_path,
-                    model_cache_path=model_cache_path,
-                )
+                for dataset in tqdm(
+                    shuffled_datasets,
+                    desc=f"{method_name} ({train}) Datasets",
+                    position=2,
+                    leave=False,
+                ):
+                    run_baseline_scarcity(
+                        train,
+                        dataset,
+                        method_name,
+                        model_name=model_name,
+                        hook_name=hook_name,
+                        results_path=results_path,
+                        model_cache_path=resolved_cache_path,
+                    )
 
 
 """
@@ -210,8 +231,8 @@ def run_baseline_class_imbalance(
     method_name: Method,
     model_name: str,
     hook_name: str,
+    model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 < dataset_frac < 1
     dataset_frac = round(dataset_frac * 20) / 20
@@ -256,33 +277,42 @@ def run_all_baseline_class_imbalance(
     model_name: str,
     hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path | None = None,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
-    shuffled_datasets = get_datasets(
-        model_name, hook_name=hook_name, model_cache_path=model_cache_path
-    ).copy()
-    np.random.shuffle(shuffled_datasets)
-    fracs = get_class_imbalance()
-    for method_name in tqdm(methods, desc="Methods", position=0):
-        for frac in tqdm(
-            fracs, desc=f"{method_name} Fractions", position=1, leave=False
-        ):
-            for dataset in tqdm(
-                shuffled_datasets,
-                desc=f"{method_name} (frac {frac:.2f}) Datasets",
-                position=2,
-                leave=False,
+    with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
+        ensure_dataset_activations(
+            model_name=model_name,
+            dataset_short_names=DATASETS,
+            hook_names=[hook_name],
+            model_cache_path=resolved_cache_path,
+            device="cpu",
+        )
+
+        shuffled_datasets = get_datasets(
+            model_name, hook_name=hook_name, model_cache_path=resolved_cache_path
+        ).copy()
+        np.random.shuffle(shuffled_datasets)
+        fracs = get_class_imbalance()
+        for method_name in tqdm(methods, desc="Methods", position=0):
+            for frac in tqdm(
+                fracs, desc=f"{method_name} Fractions", position=1, leave=False
             ):
-                run_baseline_class_imbalance(
-                    frac,
-                    dataset,
-                    method_name,
-                    model_name=model_name,
-                    hook_name=hook_name,
-                    results_path=results_path,
-                    model_cache_path=model_cache_path,
-                )
+                for dataset in tqdm(
+                    shuffled_datasets,
+                    desc=f"{method_name} (frac {frac:.2f}) Datasets",
+                    position=2,
+                    leave=False,
+                ):
+                    run_baseline_class_imbalance(
+                        frac,
+                        dataset,
+                        method_name,
+                        model_name=model_name,
+                        hook_name=hook_name,
+                        results_path=results_path,
+                        model_cache_path=resolved_cache_path,
+                    )
 
 
 """
@@ -296,8 +326,8 @@ def run_baseline_corrupt(
     method_name: Method,
     model_name: str,
     hook_name: str,
+    model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 <= corrupt_frac <= 0.5
     corrupt_frac = round(corrupt_frac * 20) / 20
@@ -342,26 +372,35 @@ def run_all_baseline_corrupt(
     model_name: str,
     hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
+    model_cache_path: str | Path | None = None,
 ):
-    shuffled_datasets = get_datasets(
-        model_name, hook_name=hook_name, model_cache_path=model_cache_path
-    ).copy()
-    np.random.shuffle(shuffled_datasets)
-    fracs = get_corrupt_frac()
-    for frac in tqdm(fracs, desc="Corrupt Fracs (logreg)", position=0):
-        for dataset in tqdm(
-            shuffled_datasets,
-            desc=f"Datasets (logreg, frac {frac:.2f})",
-            position=1,
-            leave=False,
-        ):
-            run_baseline_corrupt(
-                frac,
-                dataset,
-                method_name="logreg",
-                model_name=model_name,
-                hook_name=hook_name,
-                results_path=results_path,
-                model_cache_path=model_cache_path,
-            )
+    with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
+        ensure_dataset_activations(
+            model_name=model_name,
+            dataset_short_names=DATASETS,
+            hook_names=[hook_name],
+            model_cache_path=resolved_cache_path,
+            device="cpu",
+        )
+
+        shuffled_datasets = get_datasets(
+            model_name, hook_name=hook_name, model_cache_path=resolved_cache_path
+        ).copy()
+        np.random.shuffle(shuffled_datasets)
+        fracs = get_corrupt_frac()
+        for frac in tqdm(fracs, desc="Corrupt Fracs (logreg)", position=0):
+            for dataset in tqdm(
+                shuffled_datasets,
+                desc=f"Datasets (logreg, frac {frac:.2f})",
+                position=1,
+                leave=False,
+            ):
+                run_baseline_corrupt(
+                    frac,
+                    dataset,
+                    method_name="logreg",
+                    model_name=model_name,
+                    hook_name=hook_name,
+                    results_path=results_path,
+                    model_cache_path=resolved_cache_path,
+                )

@@ -8,7 +8,7 @@ from tqdm import tqdm
 from transformer_lens import HookedTransformer
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
+from sae_probes.constants import DATA_PATH
 from sae_probes.utils_hooks import get_layer_from_hook_name
 
 
@@ -92,11 +92,11 @@ def generate_single_dataset_activations(
     model_name: str,
     dataset_path: str | Path,
     hook_names: list[str],
+    model_cache_path: str | Path,
     device: str = "cuda",
     max_seq_len: int = 1024,
     batch_size: int = 32,
     OOD: bool = False,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     dataset = pd.read_csv(dataset_path)
     if "prompt" not in dataset.columns:
@@ -153,11 +153,11 @@ def generate_single_dataset_activations(
 def generate_dataset_activations(
     model_name: str,
     hook_names: list[str],
+    model_cache_path: str | Path,
     device: str = "cuda",
     max_seq_len: int = 1024,
     batch_size: int = 32,
     OOD: bool = False,
-    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     model: HookedTransformer | None = None,
 ):
     os.makedirs(
@@ -183,9 +183,63 @@ def generate_dataset_activations(
             model_name=model_name,
             dataset_path=dataset_path,
             hook_names=hook_names,
+            model_cache_path=model_cache_path,
             device=device,
             max_seq_len=max_seq_len,
             batch_size=batch_size,
             OOD=OOD,
+        )
+
+
+@torch.inference_mode()
+def ensure_dataset_activations(
+    model_name: str,
+    dataset_short_names: list[str],
+    hook_names: list[str],
+    model_cache_path: str | Path,
+    device: str = "cuda",
+    max_seq_len: int = 1024,
+    batch_size: int = 32,
+    OOD: bool = False,
+    model: HookedTransformer | None = None,
+) -> None:
+    """Ensure activations are present for each dataset/hook pair; generate missing ones."""
+    to_generate: list[tuple[str, str]] = []
+    base_dir = (
+        Path(model_cache_path)
+        / f"model_activations_{model_name}{'_OOD' if OOD else ''}"
+    )
+    for dataset in dataset_short_names:
+        for hook in hook_names:
+            expected = base_dir / f"{dataset}{'_OOD' if OOD else ''}_{hook}.pt"
+            if not expected.exists():
+                to_generate.append((dataset, hook))
+
+    if not to_generate:
+        return
+
+    # Load model once if needed
+    if model is None:
+        model = HookedTransformer.from_pretrained_no_processing(
+            model_name, device=device
+        )
+
+    # Generate per dataset for all requested hooks
+    for dataset in sorted({d for d, _ in to_generate}):
+        dataset_path = (
+            DATA_PATH
+            / ("OOD data" if OOD else "cleaned_data")
+            / f"{dataset}{'_OOD' if OOD else ''}.csv"
+        )
+        hooks_for_dataset = [h for d, h in to_generate if d == dataset]
+        generate_single_dataset_activations(
+            model=model,
+            model_name=model_name,
+            dataset_path=dataset_path,
+            hook_names=hooks_for_dataset,
             model_cache_path=model_cache_path,
+            device=device,
+            max_seq_len=max_seq_len,
+            batch_size=batch_size,
+            OOD=OOD,
         )
