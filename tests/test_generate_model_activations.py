@@ -9,6 +9,7 @@ from sae_probes.generate_model_activations import (
     _process_activations,
     generate_single_dataset_activations,
 )
+from sae_probes.utils_hooks import get_layer_from_hook_name
 
 
 def test_process_activations_gives_same_results_regardless_of_batch_size(
@@ -60,6 +61,15 @@ def test_process_activations_gives_same_results_regardless_of_batch_size(
         assert torch.allclose(batched_acts, unbatched_acts, atol=1e-5)
 
 
+def test_get_layer_from_hook_name_parsing():
+    assert get_layer_from_hook_name("blocks.0.hook_resid_post") == 0
+    assert get_layer_from_hook_name("blocks.12.hook_mlp_out") == 12
+    assert get_layer_from_hook_name("hook_embed") is None
+    assert get_layer_from_hook_name("final_ln.hook_normalized") is None
+    assert get_layer_from_hook_name("") is None
+    assert get_layer_from_hook_name("blocks.notint.hook_resid_post") is None
+
+
 def test_get_text_lengths(gpt2_model: HookedSAETransformer):
     texts = [
         "Hello, world!",
@@ -79,7 +89,7 @@ def test_generate_single_dataset_activations(
         model=gpt2_model,
         model_name="gpt2",
         dataset_path=str(DATA_PATH / "cleaned_data" / "119_us_state_TX.csv"),
-        layers=[1, 2],
+        hook_names=["blocks.1.hook_resid_post", "blocks.2.hook_resid_post"],
         model_cache_path=tmp_path,
         device="cpu",
     )

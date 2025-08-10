@@ -17,7 +17,7 @@ def test_run_baseline_dataset_layer(gpt2_model: HookedTransformer, tmp_path: Pat
     generate_model_activations(gpt2_model, model_cache_path, layers=[4])
     run_baseline_dataset_layer(
         model_name="gpt2",
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         numbered_dataset=TEST_DATASET_NAME,
         method_name="logreg",
         results_path=results_path,
@@ -28,7 +28,7 @@ def test_run_baseline_dataset_layer(gpt2_model: HookedTransformer, tmp_path: Pat
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/normal/allruns/layer4_119_us_state_TX_logreg.csv"
+        == "baseline_results_gpt2/normal/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg.csv"
     )
     df = pd.read_csv(results_files[0])
     assert set(df.columns.tolist()) == {
@@ -53,7 +53,7 @@ def test_run_baseline_scarcity(gpt2_model: HookedTransformer, tmp_path: Path):
     generate_model_activations(gpt2_model, model_cache_path, layers=[4])
     run_baseline_scarcity(
         model_name="gpt2",
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         numbered_dataset=TEST_DATASET_NAME,
         method_name="logreg",
         num_train=25,
@@ -65,7 +65,7 @@ def test_run_baseline_scarcity(gpt2_model: HookedTransformer, tmp_path: Path):
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/scarcity/allruns/layer4_119_us_state_TX_logreg_numtrain25.csv"
+        == "baseline_results_gpt2/scarcity/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg_numtrain25.csv"
     )
     df = pd.read_csv(results_files[0])
     assert set(df.columns.tolist()) == {
@@ -92,7 +92,7 @@ def test_run_baseline_class_imbalance(gpt2_model: HookedTransformer, tmp_path: P
     generate_model_activations(gpt2_model, model_cache_path, layers=[4])
     run_baseline_class_imbalance(
         model_name="gpt2",
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         numbered_dataset=TEST_DATASET_NAME,
         method_name="logreg",
         dataset_frac=0.1,
@@ -104,7 +104,7 @@ def test_run_baseline_class_imbalance(gpt2_model: HookedTransformer, tmp_path: P
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/imbalance/allruns/layer4_119_us_state_TX_logreg_frac0.1.csv"
+        == "baseline_results_gpt2/imbalance/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg_frac0.1.csv"
     )
     df = pd.read_csv(results_files[0])
     assert set(df.columns.tolist()) == {

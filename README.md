@@ -21,7 +21,7 @@ from sae_probes import generate_dataset_activations
 
 generate_dataset_activations(
    model_name="gemma-2-2b", # the TransformerLens name of the model
-   layers=[12], # Layers to extract activations from (will use hook_resid_post)
+   hook_names=["blocks.12.hook_resid_post"], # Any TLens hook names
    batch_size=64,
    device="cuda",
    model_cache_path="/path/to/save/activations",
@@ -50,7 +50,7 @@ sae = SAE.from_pretrained(release, sae_id)[0]
 run_sae_evals(
    sae=sae,
    model_name="gemma-2-2b",
-   layer=12,
+   hook_name="blocks.12.hook_resid_post",
    reg_type="l1",
    setting="normal",
    sae_cache_path="/results/output/path",
@@ -70,7 +70,7 @@ from sae_probes import run_all_baseline_normal
 
 run_all_baseline_normal(
    model_name="gemma-2-2b",
-   layer=12,
+   hook_name="blocks.12.hook_resid_post",
    results_path="/results/output/path",
    model_cache_path="/path/to/saved/activations",
 )

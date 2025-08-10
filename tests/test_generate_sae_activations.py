@@ -18,7 +18,7 @@ def test_generate_sae_activations_normal(
     sae_acts = generate_sae_activations_normal(
         gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         model_name="gpt2",
         device="cpu",
         model_cache_path=model_cache_path,
@@ -38,7 +38,7 @@ def test_generate_sae_activations_imbalance(
     sae_acts = generate_sae_activations_imbalance(
         gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         frac=0.5,
         model_name="gpt2",
         device="cpu",
@@ -58,7 +58,7 @@ def test_generate_sae_activations_scarsity(
     sae_acts = generate_sae_activations_scarcity(
         gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=4,
+        hook_name="blocks.4.hook_resid_post",
         num_train=123,
         model_name="gpt2",
         device="cpu",

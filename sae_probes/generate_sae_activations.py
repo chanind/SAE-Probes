@@ -49,7 +49,7 @@ def load_activations(path):
 def generate_sae_activations_normal(
     sae: SAE,
     dataset: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     device: str,
     batch_size: int = 128,
@@ -60,7 +60,7 @@ def generate_sae_activations_normal(
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         dataset,
-        layer,
+        hook_name,
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
@@ -89,7 +89,7 @@ def generate_sae_activations_normal(
 def generate_sae_activations_scarcity(
     sae: SAE,
     dataset: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     device: str,
     num_train: int,
@@ -99,7 +99,7 @@ def generate_sae_activations_scarcity(
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         dataset,
-        layer,
+        hook_name,
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
@@ -128,7 +128,7 @@ def generate_sae_activations_scarcity(
 def generate_sae_activations_imbalance(
     sae: SAE,
     dataset: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     device: str,
     frac: float,
@@ -140,7 +140,7 @@ def generate_sae_activations_imbalance(
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
         dataset,
-        layer,
+        hook_name,
         pos_ratio=frac,
         model_name=model_name,
         num_test=num_test,
@@ -171,7 +171,7 @@ def generate_sae_activations(
     sae: SAE,
     setting: Setting,
     dataset: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     device: str,
     num_train: int | None,
@@ -183,7 +183,7 @@ def generate_sae_activations(
         return generate_sae_activations_normal(
             sae=sae,
             dataset=dataset,
-            layer=layer,
+            hook_name=hook_name,
             model_name=model_name,
             device=device,
             batch_size=batch_size,
@@ -194,7 +194,7 @@ def generate_sae_activations(
         return generate_sae_activations_scarcity(
             sae=sae,
             dataset=dataset,
-            layer=layer,
+            hook_name=hook_name,
             model_name=model_name,
             device=device,
             num_train=num_train,
@@ -206,7 +206,7 @@ def generate_sae_activations(
         return generate_sae_activations_imbalance(
             sae=sae,
             dataset=dataset,
-            layer=layer,
+            hook_name=hook_name,
             model_name=model_name,
             device=device,
             frac=frac,

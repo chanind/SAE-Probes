@@ -42,7 +42,7 @@ def load_activations(path):
 # Normal setting functions
 def get_save_metrics_path(
     dataset: str,
-    layer: int,
+    hook_name: str,
     reg_type: RegType,
     model_name: str,
     binarize: bool = False,
@@ -52,7 +52,7 @@ def get_save_metrics_path(
     frac: float | None = None,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
-    description_string = f"{dataset}_{layer}"
+    description_string = f"{dataset}_{hook_name}"
 
     if setting == "normal":
         extra_string = "_"
@@ -115,7 +115,7 @@ def get_sorted_indices_new(X_train_sae, y_train):
 def run_sae_eval(
     sae: SAE,
     dataset: str,
-    layer: int,
+    hook_name: str,
     reg_type: RegType,
     setting: Setting,
     model_name: str,
@@ -133,7 +133,7 @@ def run_sae_eval(
         sae=sae,
         setting=setting,
         dataset=dataset,
-        layer=layer,
+        hook_name=hook_name,
         model_name=model_name,
         device=device,
         num_train=num_train,
@@ -183,7 +183,7 @@ def run_sae_eval(
             {
                 "k": k,
                 "dataset": dataset,
-                "layer": layer,
+                "hook_name": hook_name,
                 "reg_type": reg_type,
                 "binarize": binarize,
                 "indices": top_by_average_diff.tolist(),
@@ -200,7 +200,7 @@ def run_sae_eval(
 
     save_path = get_save_metrics_path(
         dataset=dataset,
-        layer=layer,
+        hook_name=hook_name,
         reg_type=reg_type,
         binarize=binarize,
         model_name=model_name,
@@ -222,7 +222,7 @@ def run_sae_eval(
 def run_sae_evals(
     sae: SAE,
     model_name: str,
-    layer: int,
+    hook_name: str,
     reg_type: RegType,
     setting: Setting,
     ks: list[int] | None = None,
@@ -235,7 +235,7 @@ def run_sae_evals(
         if setting == "normal":
             save_path = get_save_metrics_path(
                 dataset=dataset,
-                layer=layer,
+                hook_name=hook_name,
                 reg_type=reg_type,
                 binarize=binarize,
                 model_name=model_name,
@@ -244,16 +244,16 @@ def run_sae_evals(
             )
             if save_path.exists():
                 print(
-                    f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, setting {setting}"
+                    f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
                 )
             else:
                 print(
-                    f"Running probe for dataset {dataset}, layer {layer}, reg_type {reg_type}, setting {setting}"
+                    f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}"
                 )
                 success = run_sae_eval(
                     sae,
                     dataset,
-                    layer,
+                    hook_name,
                     reg_type,
                     setting,
                     model_name,
@@ -269,7 +269,7 @@ def run_sae_evals(
                     continue
                 save_path = get_save_metrics_path(
                     dataset=dataset,
-                    layer=layer,
+                    hook_name=hook_name,
                     reg_type=reg_type,
                     binarize=binarize,
                     model_name=model_name,
@@ -279,17 +279,16 @@ def run_sae_evals(
                 )
                 if save_path.exists():
                     print(
-                        f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                        f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, setting {setting}, num_train {num_train}"
                     )
                 else:
                     print(
-                        f"Running probe for dataset {dataset}, layer {layer}, "
-                        f"reg_type {reg_type}, num_train {num_train}, setting {setting}"
+                        f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, num_train {num_train}, setting {setting}"
                     )
                     success = run_sae_eval(
                         sae,
                         dataset,
-                        layer,
+                        hook_name,
                         reg_type,
                         setting,
                         model_name,
@@ -303,7 +302,7 @@ def run_sae_evals(
             for frac in FRACS:
                 save_path = get_save_metrics_path(
                     dataset=dataset,
-                    layer=layer,
+                    hook_name=hook_name,
                     reg_type=reg_type,
                     binarize=binarize,
                     model_name=model_name,
@@ -313,17 +312,16 @@ def run_sae_evals(
                 )
                 if save_path.exists():
                     print(
-                        f"Skipping dataset {dataset}, layer {layer}, reg_type {reg_type}, frac {frac}, setting {setting}"
+                        f"Skipping dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
                     )
                 else:
                     print(
-                        f"Running probe for dataset {dataset}, layer {layer}, "
-                        f"reg_type {reg_type}, frac {frac}, setting {setting}"
+                        f"Running probe for dataset {dataset}, hook {hook_name}, reg_type {reg_type}, frac {frac}, setting {setting}"
                     )
                     success = run_sae_eval(
                         sae,
                         dataset,
-                        layer,
+                        hook_name,
                         reg_type=reg_type,
                         setting=setting,
                         model_name=model_name,

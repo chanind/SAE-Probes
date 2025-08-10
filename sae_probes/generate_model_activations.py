@@ -9,6 +9,7 @@ from transformer_lens import HookedTransformer
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from sae_probes.constants import DATA_PATH, DEFAULT_MODEL_CACHE_PATH
+from sae_probes.utils_hooks import get_layer_from_hook_name
 
 
 def _get_tokenizer(model: HookedTransformer) -> PreTrainedTokenizerBase:
@@ -31,7 +32,7 @@ def _process_activations(
     batch_size: int,
     max_seq_len: int,
     hook_names: list[str],
-    max_layer: int,
+    max_layer: int | None,
     device: str,
 ) -> dict[str, torch.Tensor]:
     tokenizer = _get_tokenizer(model)
@@ -49,11 +50,28 @@ def _process_activations(
             return_tensors="pt",
         )  # type: ignore
         batch = batch.to(device)
-        _, cache = model.run_with_cache(
-            batch["input_ids"],
-            names_filter=hook_names,
-            stop_at_layer=max_layer + 1,
-        )
+        # Determine a safe stop layer if not provided: use the maximum blocks.{i}.*
+        if max_layer is None:
+            max_block: int = -1
+            for name in hook_names:
+                layer_idx = get_layer_from_hook_name(name)
+                if layer_idx is not None and layer_idx > max_block:
+                    max_block = layer_idx
+            computed_stop_at_layer = (max_block + 1) if max_block >= 0 else None
+        else:
+            computed_stop_at_layer = max_layer + 1
+
+        if computed_stop_at_layer is not None:
+            _, cache = model.run_with_cache(
+                batch["input_ids"],
+                names_filter=hook_names,
+                stop_at_layer=computed_stop_at_layer,
+            )
+        else:
+            _, cache = model.run_with_cache(
+                batch["input_ids"],
+                names_filter=hook_names,
+            )
         for j, length in enumerate(batch_lengths):
             for hook_name in hook_names:
                 activation_pos = min(length - 1, max_seq_len - 1)
@@ -73,15 +91,13 @@ def generate_single_dataset_activations(
     model: HookedTransformer,
     model_name: str,
     dataset_path: str | Path,
-    layers: list[int],
+    hook_names: list[str],
     device: str = "cuda",
     max_seq_len: int = 1024,
     batch_size: int = 32,
     OOD: bool = False,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    # Define hook names based on model
-    hook_names = [f"blocks.{layer}.hook_resid_post" for layer in layers]
     dataset = pd.read_csv(dataset_path)
     if "prompt" not in dataset.columns:
         return
@@ -124,7 +140,7 @@ def generate_single_dataset_activations(
         batch_size=batch_size,
         max_seq_len=max_seq_len,
         hook_names=hook_names,
-        max_layer=max(layers),
+        max_layer=None,
         device=device,
     )
 
@@ -136,7 +152,7 @@ def generate_single_dataset_activations(
 @torch.inference_mode()
 def generate_dataset_activations(
     model_name: str,
-    layers: list[int],
+    hook_names: list[str],
     device: str = "cuda",
     max_seq_len: int = 1024,
     batch_size: int = 32,
@@ -166,7 +182,7 @@ def generate_dataset_activations(
             model=model,
             model_name=model_name,
             dataset_path=dataset_path,
-            layers=layers,
+            hook_names=hook_names,
             device=device,
             max_seq_len=max_seq_len,
             batch_size=batch_size,

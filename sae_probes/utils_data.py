@@ -54,33 +54,26 @@ def get_yvals(numbered_dataset_tag: str) -> np.ndarray:
 
 def get_xvals(
     numbered_dataset_tag: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    if layer == "embed":
-        fname = (
-            Path(model_cache_path)
-            / f"model_activations_{model_name}/{numbered_dataset_tag}_hook_embed.pt"
-        )
-    else:
-        fname = (
-            Path(model_cache_path)
-            / f"model_activations_{model_name}/{numbered_dataset_tag}_blocks.{layer}.hook_resid_post.pt"
-        )
+    fname = (
+        Path(model_cache_path)
+        / f"model_activations_{model_name}/{numbered_dataset_tag}_{hook_name}.pt"
+    )
     activations = torch.load(fname, weights_only=False)
-    # print(f"Shape of {numbered_dataset_tag} at layer {layer}: {activations.shape}")
     return activations
 
 
 def get_xyvals(
     numbered_dataset_tag: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     MAX_AMT: int = 1500,
 ):
-    xvals = get_xvals(numbered_dataset_tag, layer, model_name, model_cache_path)
+    xvals = get_xvals(numbered_dataset_tag, hook_name, model_name, model_cache_path)
     yvals = get_yvals(numbered_dataset_tag)
     # Return only up to MAX_AMT samples
     xvals = xvals[:MAX_AMT]
@@ -126,7 +119,7 @@ def get_train_test_indices(y, num_train, num_test, pos_ratio=0.5, seed=42):
 def get_xy_traintest_specify(
     num_train: int,
     numbered_dataset_tag: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     pos_ratio: float = 0.5,
     MAX_AMT: int = 5000,
@@ -136,7 +129,7 @@ def get_xy_traintest_specify(
 ):
     X, y = get_xyvals(
         numbered_dataset_tag,
-        layer,
+        hook_name,
         model_name,
         MAX_AMT=MAX_AMT,
         model_cache_path=model_cache_path,
@@ -160,7 +153,7 @@ def get_xy_traintest_specify(
 def get_xy_traintest(
     num_train: int,
     numbered_dataset_tag: str,
-    layer: int,
+    hook_name: str,
     model_name: str,
     MAX_AMT: int = 5000,
     seed: int = 42,
@@ -169,7 +162,7 @@ def get_xy_traintest(
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
         numbered_dataset_tag,
-        layer,
+        hook_name,
         model_name,
         pos_ratio=0.5,
         MAX_AMT=MAX_AMT,
@@ -270,12 +263,12 @@ def get_OOD_datasets(translation: bool = True) -> list[str]:
 def get_xy_OOD(
     dataset: str,
     model_name: str,
-    layer: int = 20,
+    hook_name: str,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X = torch.load(
         Path(model_cache_path)
-        / f"model_activations_{model_name}_OOD/{dataset}_OOD_blocks.{layer}.hook_resid_post.pt",
+        / f"model_activations_{model_name}_OOD/{dataset}_OOD_{hook_name}.pt",
         weights_only=False,
     )
     df = pd.read_csv(DATA_PATH / f"OOD data/{dataset}_OOD.csv")
@@ -287,38 +280,36 @@ def get_xy_OOD(
 def get_OOD_traintest(
     dataset: str,
     model_name: str,
-    layer: int = 20,
+    hook_name: str,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     X_train, y_train, _, _ = get_xy_traintest_specify(
         num_train=1024,
         numbered_dataset_tag=dataset,
-        layer=layer,
+        hook_name=hook_name,
         model_name=model_name,
         MAX_AMT=1500,
         pos_ratio=0.5,
         num_test=0,
         model_cache_path=model_cache_path,
     )
-    X_test, y_test = get_xy_OOD(dataset, model_name, layer, model_cache_path)
+    X_test, y_test = get_xy_OOD(dataset, model_name, hook_name, model_cache_path)
     return X_train, y_train, X_test, y_test
 
 
 def get_datasets(
-    model_name: str, model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH
+    model_name: str,
+    hook_name: str,
+    model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    # Get all files in the directory
     dataset_sizes = get_dataset_sizes()
-    files = os.listdir(str(Path(model_cache_path) / f"model_activations_{model_name}"))
-
-    # Filter for files containing 'blocks'
-    block_files = [f for f in files if "blocks" in f]
-
-    # Extract unique dataset names by removing _blocks and everything after
-    datasets = set()
-    for file in block_files:
-        dataset = file.split("_blocks")[0]
-        if dataset in dataset_sizes.keys():  # binary dfs
-            datasets.add(dataset)
-
+    directory = Path(model_cache_path) / f"model_activations_{model_name}"
+    files = os.listdir(str(directory))
+    suffix = f"_{hook_name}.pt"
+    datasets: set[str] = set()
+    for file in files:
+        if file.endswith(suffix):
+            dataset = file[: -len(suffix)]
+            if dataset in dataset_sizes.keys():
+                datasets.add(dataset)
     return sorted(list(datasets))

@@ -54,14 +54,15 @@ FUNCTIONS FOR STANDARD CONDITIONS
 
 
 def run_baseline_dataset_layer(
-    layer: int,
+    hook_name: str,
     numbered_dataset: str,
     method_name: Method,
     model_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    base_path = f"baseline_results_{model_name}/normal/allruns/layer{layer}_{numbered_dataset}_{method_name}"
+    safe_hook = hook_name.replace("/", "-")
+    base_path = f"baseline_results_{model_name}/normal/allruns/{safe_hook}_{numbered_dataset}_{method_name}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
     metrics_savepath = Path(results_path) / f"{base_path}.csv"
     os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
@@ -72,7 +73,7 @@ def run_baseline_dataset_layer(
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         numbered_dataset,
-        layer,
+        hook_name,
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
@@ -95,13 +96,13 @@ def run_baseline_dataset_layer(
 
 def run_all_baseline_normal(
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
-        model_name, model_cache_path=model_cache_path
+        model_name, hook_name=hook_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     for method_name in tqdm(methods, desc="Methods", position=0):
@@ -109,7 +110,7 @@ def run_all_baseline_normal(
             shuffled_datasets, desc=f"{method_name} Datasets", position=1, leave=False
         ):
             run_baseline_dataset_layer(
-                layer,
+                hook_name,
                 dataset,
                 method_name,
                 model_name=model_name,
@@ -128,11 +129,12 @@ def run_baseline_scarcity(
     numbered_dataset: str,
     method_name: Method,
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
-    base_path = f"baseline_results_{model_name}/scarcity/allruns/layer{layer}_{numbered_dataset}_{method_name}_numtrain{num_train}"
+    safe_hook = hook_name.replace("/", "-")
+    base_path = f"baseline_results_{model_name}/scarcity/allruns/{safe_hook}_{numbered_dataset}_{method_name}_numtrain{num_train}"
     metrics_savepath = Path(results_path) / f"{base_path}.csv"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
     os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
@@ -145,7 +147,7 @@ def run_baseline_scarcity(
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         numbered_dataset,
-        layer,
+        hook_name,
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
@@ -166,13 +168,13 @@ def run_baseline_scarcity(
 
 def run_all_baseline_scarcity(
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
-        model_name, model_cache_path=model_cache_path
+        model_name, hook_name=hook_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     train_sizes = get_training_sizes()
@@ -191,7 +193,7 @@ def run_all_baseline_scarcity(
                     dataset,
                     method_name,
                     model_name=model_name,
-                    layer=layer,
+                    hook_name=hook_name,
                     results_path=results_path,
                     model_cache_path=model_cache_path,
                 )
@@ -207,13 +209,14 @@ def run_baseline_class_imbalance(
     numbered_dataset: str,
     method_name: Method,
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 < dataset_frac < 1
     dataset_frac = round(dataset_frac * 20) / 20
-    base_path = f"baseline_results_{model_name}/imbalance/allruns/layer{layer}_{numbered_dataset}_{method_name}_frac{dataset_frac}"
+    safe_hook = hook_name.replace("/", "-")
+    base_path = f"baseline_results_{model_name}/imbalance/allruns/{safe_hook}_{numbered_dataset}_{method_name}_frac{dataset_frac}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
     metrics_savepath = Path(results_path) / f"{base_path}.csv"
     os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
@@ -223,7 +226,7 @@ def run_baseline_class_imbalance(
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
         numbered_dataset,
-        layer,
+        hook_name,
         pos_ratio=dataset_frac,
         model_name=model_name,
         num_test=num_test,
@@ -251,13 +254,13 @@ def run_baseline_class_imbalance(
 
 def run_all_baseline_class_imbalance(
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
     methods: Sequence[Method] = DEFAULT_METHODS,
 ):
     shuffled_datasets = get_datasets(
-        model_name, model_cache_path=model_cache_path
+        model_name, hook_name=hook_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_class_imbalance()
@@ -276,7 +279,7 @@ def run_all_baseline_class_imbalance(
                     dataset,
                     method_name,
                     model_name=model_name,
-                    layer=layer,
+                    hook_name=hook_name,
                     results_path=results_path,
                     model_cache_path=model_cache_path,
                 )
@@ -292,13 +295,14 @@ def run_baseline_corrupt(
     numbered_dataset: str,
     method_name: Method,
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     assert 0 <= corrupt_frac <= 0.5
     corrupt_frac = round(corrupt_frac * 20) / 20
-    base_path = f"baseline_results_{model_name}/corrupt/allruns/layer{layer}_{numbered_dataset}_{method_name}_corrupt{corrupt_frac}"
+    safe_hook = hook_name.replace("/", "-")
+    base_path = f"baseline_results_{model_name}/corrupt/allruns/{safe_hook}_{numbered_dataset}_{method_name}_corrupt{corrupt_frac}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
     metrics_savepath = Path(results_path) / f"{base_path}.csv"
     os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
@@ -309,7 +313,7 @@ def run_baseline_corrupt(
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         numbered_dataset,
-        layer,
+        hook_name,
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
@@ -336,12 +340,12 @@ def run_baseline_corrupt(
 
 def run_all_baseline_corrupt(
     model_name: str,
-    layer: int,
+    hook_name: str,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path = DEFAULT_MODEL_CACHE_PATH,
 ):
     shuffled_datasets = get_datasets(
-        model_name, model_cache_path=model_cache_path
+        model_name, hook_name=hook_name, model_cache_path=model_cache_path
     ).copy()
     np.random.shuffle(shuffled_datasets)
     fracs = get_corrupt_frac()
@@ -357,7 +361,7 @@ def run_all_baseline_corrupt(
                 dataset,
                 method_name="logreg",
                 model_name=model_name,
-                layer=layer,
+                hook_name=hook_name,
                 results_path=results_path,
                 model_cache_path=model_cache_path,
             )

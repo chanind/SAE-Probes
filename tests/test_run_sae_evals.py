@@ -25,7 +25,7 @@ def test_run_sae_eval_normal_setting(
     success: bool = run_sae_eval(
         sae=gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         setting=setting,
         model_name=model_name,
@@ -39,7 +39,7 @@ def test_run_sae_eval_normal_setting(
 
     expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
@@ -56,8 +56,8 @@ def test_run_sae_eval_normal_setting(
         assert "k" in item
         assert "dataset" in item
         assert item["dataset"] == TEST_DATASET_NAME
-        assert "layer" in item
-        assert item["layer"] == layer
+        assert "hook_name" in item
+        assert item["hook_name"] == f"blocks.{layer}.hook_resid_post"
         assert "reg_type" in item
         assert item["reg_type"] == reg_type
         assert "binarize" in item
@@ -88,7 +88,7 @@ def test_run_sae_eval_scarcity_setting(
     success: bool = run_sae_eval(
         sae=gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         setting=setting,
         model_name=model_name,
@@ -103,7 +103,7 @@ def test_run_sae_eval_scarcity_setting(
 
     expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
@@ -121,8 +121,8 @@ def test_run_sae_eval_scarcity_setting(
         assert "k" in item
         assert "dataset" in item
         assert item["dataset"] == TEST_DATASET_NAME
-        assert "layer" in item
-        assert item["layer"] == layer
+        assert "hook_name" in item
+        assert item["hook_name"] == f"blocks.{layer}.hook_resid_post"
         assert "reg_type" in item
         assert item["reg_type"] == reg_type
         assert "binarize" in item
@@ -155,7 +155,7 @@ def test_run_sae_eval_imbalance_setting(
     success: bool = run_sae_eval(
         sae=gpt2_l4_sae,
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         setting=setting,
         model_name=model_name,
@@ -170,7 +170,7 @@ def test_run_sae_eval_imbalance_setting(
 
     expected_save_path: Path = get_save_metrics_path(
         dataset=TEST_DATASET_NAME,
-        layer=layer,
+        hook_name=f"blocks.{layer}.hook_resid_post",
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
@@ -188,8 +188,8 @@ def test_run_sae_eval_imbalance_setting(
         assert "k" in item
         assert "dataset" in item
         assert item["dataset"] == TEST_DATASET_NAME
-        assert "layer" in item
-        assert item["layer"] == layer
+        assert "hook_name" in item
+        assert item["hook_name"] == f"blocks.{layer}.hook_resid_post"
         assert "reg_type" in item
         assert item["reg_type"] == reg_type
         assert "binarize" in item

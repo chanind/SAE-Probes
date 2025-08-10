@@ -15,11 +15,12 @@ def generate_model_activations(
     layers: list[int],
     dataset_path: Path = TEST_DATASET_PATH,
 ) -> dict[int, Path]:
+    hook_names = [f"blocks.{layer}.hook_resid_post" for layer in layers]
     generate_single_dataset_activations(
         model=model,
         model_name="gpt2",
         dataset_path=dataset_path,
-        layers=layers,
+        hook_names=hook_names,
         model_cache_path=model_cache_path,
         device="cpu",
     )

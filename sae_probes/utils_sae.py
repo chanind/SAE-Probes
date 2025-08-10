@@ -10,14 +10,16 @@ from sae_probes.utils_data import get_xy_OOD, get_xyvals
 def get_xy_OOD_sae(
     dataset: str,
     model_name: str,
-    layer: int,
+    hook_name: str,
     k: int = 128,
     return_indices: bool = False,
     num_train: int = 1024,
     sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
-    _, y_test = get_xy_OOD(dataset, model_name, layer)
-    _, y_train = get_xyvals(dataset, layer=layer, model_name=model_name, MAX_AMT=1500)
+    _, y_test = get_xy_OOD(dataset, model_name, hook_name)
+    _, y_train = get_xyvals(
+        dataset, hook_name=hook_name, model_name=model_name, MAX_AMT=1500
+    )
     X_test = (
         torch.load(
             Path(sae_cache_path) / f"sae_activations_{model_name}_OOD/{dataset}_OOD.pt",
