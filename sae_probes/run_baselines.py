@@ -1,3 +1,4 @@
+import json
 import os
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -47,6 +48,44 @@ METHODS: dict[Method, Callable[[Any, Any, Any, Any], BestClassifierResults]] = {
 DEFAULT_METHODS: tuple[Method, ...] = ("logreg",)
 
 
+def get_baseline_save_path(
+    dataset: str,
+    hook_name: str,
+    method_name: Method,
+    model_name: str,
+    results_path: str | Path,
+    setting: str = "normal",
+    num_train: int | None = None,
+    frac: float | None = None,
+) -> Path:
+    """Generate save path for baseline results matching SAE pattern."""
+    description_string = f"{dataset}_{hook_name}"
+
+    if setting == "normal":
+        extra_string = "_"
+    elif setting == "scarcity":
+        extra_string = f"{num_train}" if num_train is not None else "_"
+    elif setting == "imbalance":
+        extra_string = f"frac{frac}" if frac is not None else "_"
+    else:
+        extra_string = "_"
+
+    # Match SAE logic for extra_string formatting
+    if extra_string != "_":
+        if not extra_string.endswith("_"):
+            extra_string = extra_string + "_"
+        if not extra_string.startswith("_"):
+            extra_string = "_" + extra_string
+
+    extra_save_string = extra_string
+
+    save_path = (
+        Path(results_path)
+        / f"baseline_results_{model_name}/{setting}_setting/{description_string}{extra_save_string}{method_name}.json"
+    )
+    return save_path
+
+
 """
 FUNCTIONS FOR STANDARD CONDITIONS 
 """
@@ -60,13 +99,26 @@ def run_baseline_dataset_layer(
     model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
 ):
+    # Generate paths using new JSON format
+    metrics_savepath = get_baseline_save_path(
+        dataset=numbered_dataset,
+        hook_name=hook_name,
+        method_name=method_name,
+        model_name=model_name,
+        results_path=results_path,
+        setting="normal",
+    )
+
     safe_hook = hook_name.replace("/", "-")
     base_path = f"baseline_results_{model_name}/normal/allruns/{safe_hook}_{numbered_dataset}_{method_name}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
-    metrics_savepath = Path(results_path) / f"{base_path}.csv"
-    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
-    if os.path.exists(metrics_savepath):
+
+    os.makedirs(metrics_savepath.parent, exist_ok=True)
+    os.makedirs(os.path.dirname(classifier_savepath), exist_ok=True)
+
+    if metrics_savepath.exists():
         return None
+
     size = DATASET_SIZES[numbered_dataset]
     num_train = min(size - 100, 1024)
     X_train, y_train, X_test, y_test = get_xy_traintest(
@@ -81,11 +133,21 @@ def run_baseline_dataset_layer(
     method = METHODS[method_name]
     results = method(X_train, y_train, X_test, y_test)
 
-    # Create row with dataset and method metrics and save to csv
-    row = {"dataset": numbered_dataset, "method": method_name}
-    for metric_name, metric_value in asdict(results.metrics).items():
-        row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
+    # Create metrics dict matching SAE format
+    metrics = asdict(results.metrics)
+    metrics.update(
+        {
+            "dataset": numbered_dataset,
+            "hook_name": hook_name,
+            "method": method_name,
+            "num_train": num_train,
+        }
+    )
+
+    # Save as JSON (single entry in list to match SAE format)
+    with open(metrics_savepath, "w") as f:
+        json.dump([metrics], f, indent=4, ensure_ascii=False)
+
     torch.save(
         {"classifier": results.classifier, "scaler": results.scaler},
         classifier_savepath,
@@ -145,17 +207,32 @@ def run_baseline_scarcity(
     model_cache_path: str | Path,
     results_path: str | Path = DEFAULT_RESULTS_PATH,
 ):
+    # Generate paths using new JSON format
+    metrics_savepath = get_baseline_save_path(
+        dataset=numbered_dataset,
+        hook_name=hook_name,
+        method_name=method_name,
+        model_name=model_name,
+        results_path=results_path,
+        setting="scarcity",
+        num_train=num_train,
+    )
+
     safe_hook = hook_name.replace("/", "-")
     base_path = f"baseline_results_{model_name}/scarcity/allruns/{safe_hook}_{numbered_dataset}_{method_name}_numtrain{num_train}"
-    metrics_savepath = Path(results_path) / f"{base_path}.csv"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
-    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
-    if os.path.exists(metrics_savepath):
+
+    os.makedirs(metrics_savepath.parent, exist_ok=True)
+    os.makedirs(os.path.dirname(classifier_savepath), exist_ok=True)
+
+    if metrics_savepath.exists():
         return None
+
     size = DATASET_SIZES[numbered_dataset]
     if num_train > size - 100:
         # we dont have enough test examples
         return
+
     X_train, y_train, X_test, y_test = get_xy_traintest(
         num_train,
         numbered_dataset,
@@ -163,14 +240,26 @@ def run_baseline_scarcity(
         model_name=model_name,
         model_cache_path=model_cache_path,
     )
+
     # Run method and get metrics
     method = METHODS[method_name]
     results = method(X_train, y_train, X_test, y_test)
-    # Create row with dataset and method metrics and save to csv
-    row = {"dataset": numbered_dataset, "method": method_name, "num_train": num_train}
-    for metric_name, metric_value in asdict(results.metrics).items():
-        row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
+
+    # Create metrics dict matching SAE format
+    metrics = asdict(results.metrics)
+    metrics.update(
+        {
+            "dataset": numbered_dataset,
+            "hook_name": hook_name,
+            "method": method_name,
+            "num_train": num_train,
+        }
+    )
+
+    # Save as JSON (single entry in list to match SAE format)
+    with open(metrics_savepath, "w") as f:
+        json.dump([metrics], f, indent=4, ensure_ascii=False)
+
     torch.save(
         {"classifier": results.classifier, "scaler": results.scaler},
         classifier_savepath,
@@ -236,13 +325,28 @@ def run_baseline_class_imbalance(
 ):
     assert 0 < dataset_frac < 1
     dataset_frac = round(dataset_frac * 20) / 20
+
+    # Generate paths using new JSON format
+    metrics_savepath = get_baseline_save_path(
+        dataset=numbered_dataset,
+        hook_name=hook_name,
+        method_name=method_name,
+        model_name=model_name,
+        results_path=results_path,
+        setting="imbalance",
+        frac=dataset_frac,
+    )
+
     safe_hook = hook_name.replace("/", "-")
     base_path = f"baseline_results_{model_name}/imbalance/allruns/{safe_hook}_{numbered_dataset}_{method_name}_frac{dataset_frac}"
     classifier_savepath = Path(results_path) / f"{base_path}_classifier.pt"
-    metrics_savepath = Path(results_path) / f"{base_path}.csv"
-    os.makedirs(os.path.dirname(metrics_savepath), exist_ok=True)
-    if os.path.exists(metrics_savepath):
+
+    os.makedirs(metrics_savepath.parent, exist_ok=True)
+    os.makedirs(os.path.dirname(classifier_savepath), exist_ok=True)
+
+    if metrics_savepath.exists():
         return None
+
     num_train, num_test = get_classimabalance_num_train(numbered_dataset)
     X_train, y_train, X_test, y_test = get_xy_traintest_specify(
         num_train,
@@ -253,23 +357,31 @@ def run_baseline_class_imbalance(
         num_test=num_test,
         model_cache_path=model_cache_path,
     )
+
     # Run method and get metrics
     method = METHODS[method_name]
     results = method(X_train, y_train, X_test, y_test)
+
+    # Create metrics dict matching SAE format
+    metrics = asdict(results.metrics)
+    metrics.update(
+        {
+            "dataset": numbered_dataset,
+            "hook_name": hook_name,
+            "method": method_name,
+            "frac": dataset_frac,
+            "num_train": num_train,
+        }
+    )
+
+    # Save as JSON (single entry in list to match SAE format)
+    with open(metrics_savepath, "w") as f:
+        json.dump([metrics], f, indent=4, ensure_ascii=False)
+
     torch.save(
         {"classifier": results.classifier, "scaler": results.scaler},
         classifier_savepath,
     )
-    # Create row with dataset and method metrics and save to csv
-    row = {
-        "dataset": numbered_dataset,
-        "method": method_name,
-        "ratio": dataset_frac,
-        "num_train": num_train,
-    }
-    for metric_name, metric_value in asdict(results.metrics).items():
-        row[f"{metric_name}"] = metric_value
-    pd.DataFrame([row]).to_csv(metrics_savepath, index=False)
     return True
 
 
@@ -313,6 +425,56 @@ def run_all_baseline_class_imbalance(
                         results_path=results_path,
                         model_cache_path=resolved_cache_path,
                     )
+
+
+def run_baseline_evals(
+    model_name: str,
+    hook_name: str,
+    setting: Literal["normal", "scarcity", "imbalance"],
+    method: Method = "logreg",
+    results_path: str | Path = DEFAULT_RESULTS_PATH,
+    model_cache_path: str | Path | None = None,
+):
+    """Unified function to run baseline evaluations with consistent API to SAE benchmarks.
+
+    Args:
+        model_name: Name of the model
+        hook_name: Hook name to extract activations from
+        setting: Evaluation setting - "normal", "scarcity", or "imbalance"
+        method: Method to use for baseline evaluation
+        results_path: Path to save results
+        model_cache_path: Path to cached model activations
+    """
+    methods = (method,)
+
+    if setting == "normal":
+        run_all_baseline_normal(
+            model_name=model_name,
+            hook_name=hook_name,
+            results_path=results_path,
+            model_cache_path=model_cache_path,
+            methods=methods,
+        )
+    elif setting == "scarcity":
+        run_all_baseline_scarcity(
+            model_name=model_name,
+            hook_name=hook_name,
+            results_path=results_path,
+            model_cache_path=model_cache_path,
+            methods=methods,
+        )
+    elif setting == "imbalance":
+        run_all_baseline_class_imbalance(
+            model_name=model_name,
+            hook_name=hook_name,
+            results_path=results_path,
+            model_cache_path=model_cache_path,
+            methods=methods,
+        )
+    else:
+        raise ValueError(
+            f"Invalid setting: {setting}. Must be one of: normal, scarcity, imbalance"
+        )
 
 
 """

@@ -1,6 +1,6 @@
+import json
 from pathlib import Path
 
-import pandas as pd
 from transformer_lens import HookedTransformer
 
 from sae_probes.run_baselines import (
@@ -23,28 +23,35 @@ def test_run_baseline_dataset_layer(gpt2_model: HookedTransformer, tmp_path: Pat
         results_path=results_path,
         model_cache_path=model_cache_path,
     )
-    results_files = list(results_path.glob("**/*.csv"))
+    results_files = list(results_path.glob("**/*.json"))
     assert len(results_files) == 1
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/normal/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg.csv"
+        == "baseline_results_gpt2/normal_setting/119_us_state_TX_blocks.4.hook_resid_post_logreg.json"
     )
-    df = pd.read_csv(results_files[0])
-    assert set(df.columns.tolist()) == {
+    with open(results_files[0]) as f:
+        data = json.load(f)
+    assert isinstance(data, list)
+    assert len(data) == 1
+    result = data[0]
+    assert set(result.keys()) >= {
         "dataset",
+        "hook_name",
         "method",
+        "num_train",
         "test_f1",
         "test_acc",
         "test_auc",
         "val_auc",
     }
-    assert df.iloc[0]["dataset"] == "119_us_state_TX"
-    assert df.iloc[0]["method"] == "logreg"
-    assert df.iloc[0]["test_f1"] > 0.6
-    assert df.iloc[0]["test_acc"] > 0.6
-    assert df.iloc[0]["test_auc"] > 0.6
-    assert df.iloc[0]["val_auc"] > 0.6
+    assert result["dataset"] == "119_us_state_TX"
+    assert result["hook_name"] == "blocks.4.hook_resid_post"
+    assert result["method"] == "logreg"
+    assert result["test_f1"] > 0.6
+    assert result["test_acc"] > 0.6
+    assert result["test_auc"] > 0.6
+    assert result["val_auc"] > 0.6
 
 
 def test_run_baseline_scarcity(gpt2_model: HookedTransformer, tmp_path: Path):
@@ -60,16 +67,21 @@ def test_run_baseline_scarcity(gpt2_model: HookedTransformer, tmp_path: Path):
         results_path=results_path,
         model_cache_path=model_cache_path,
     )
-    results_files = list(results_path.glob("**/*.csv"))
+    results_files = list(results_path.glob("**/*.json"))
     assert len(results_files) == 1
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/scarcity/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg_numtrain25.csv"
+        == "baseline_results_gpt2/scarcity_setting/119_us_state_TX_blocks.4.hook_resid_post_25_logreg.json"
     )
-    df = pd.read_csv(results_files[0])
-    assert set(df.columns.tolist()) == {
+    with open(results_files[0]) as f:
+        data = json.load(f)
+    assert isinstance(data, list)
+    assert len(data) == 1
+    result = data[0]
+    assert set(result.keys()) >= {
         "dataset",
+        "hook_name",
         "method",
         "num_train",
         "test_f1",
@@ -77,13 +89,14 @@ def test_run_baseline_scarcity(gpt2_model: HookedTransformer, tmp_path: Path):
         "test_auc",
         "val_auc",
     }
-    assert df.iloc[0]["dataset"] == "119_us_state_TX"
-    assert df.iloc[0]["method"] == "logreg"
-    assert df.iloc[0]["num_train"] == 25
-    assert df.iloc[0]["test_f1"] > 0.5
-    assert df.iloc[0]["test_acc"] > 0.5
-    assert df.iloc[0]["test_auc"] > 0.5
-    assert df.iloc[0]["val_auc"] > 0.5
+    assert result["dataset"] == "119_us_state_TX"
+    assert result["hook_name"] == "blocks.4.hook_resid_post"
+    assert result["method"] == "logreg"
+    assert result["num_train"] == 25
+    assert result["test_f1"] > 0.5
+    assert result["test_acc"] > 0.5
+    assert result["test_auc"] > 0.5
+    assert result["val_auc"] > 0.5
 
 
 def test_run_baseline_class_imbalance(gpt2_model: HookedTransformer, tmp_path: Path):
@@ -99,30 +112,36 @@ def test_run_baseline_class_imbalance(gpt2_model: HookedTransformer, tmp_path: P
         results_path=results_path,
         model_cache_path=model_cache_path,
     )
-    results_files = list(results_path.glob("**/*.csv"))
+    results_files = list(results_path.glob("**/*.json"))
     assert len(results_files) == 1
     relative_path = results_files[0].relative_to(results_path)
     assert (
         str(relative_path)
-        == "baseline_results_gpt2/imbalance/allruns/blocks.4.hook_resid_post_119_us_state_TX_logreg_frac0.1.csv"
+        == "baseline_results_gpt2/imbalance_setting/119_us_state_TX_blocks.4.hook_resid_post_frac0.1_logreg.json"
     )
-    df = pd.read_csv(results_files[0])
-    assert set(df.columns.tolist()) == {
+    with open(results_files[0]) as f:
+        data = json.load(f)
+    assert isinstance(data, list)
+    assert len(data) == 1
+    result = data[0]
+    assert set(result.keys()) >= {
         "dataset",
+        "hook_name",
         "method",
         "num_train",
-        "ratio",
+        "frac",
         "test_f1",
         "test_acc",
         "test_auc",
         "val_auc",
     }
 
-    assert df.iloc[0]["dataset"] == "119_us_state_TX"
-    assert df.iloc[0]["method"] == "logreg"
-    assert df.iloc[0]["num_train"] == 426
-    assert df.iloc[0]["ratio"] == 0.1
-    assert df.iloc[0]["test_f1"] > 0.5
-    assert df.iloc[0]["test_acc"] > 0.5
-    assert df.iloc[0]["test_auc"] > 0.5
-    assert df.iloc[0]["val_auc"] > 0.5
+    assert result["dataset"] == "119_us_state_TX"
+    assert result["hook_name"] == "blocks.4.hook_resid_post"
+    assert result["method"] == "logreg"
+    assert result["num_train"] == 426
+    assert result["frac"] == 0.1
+    assert result["test_f1"] > 0.5
+    assert result["test_acc"] > 0.5
+    assert result["test_auc"] > 0.5
+    assert result["val_auc"] > 0.5

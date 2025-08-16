@@ -60,22 +60,32 @@ run_sae_evals(
 )
 ```
 
-The sparse probing results for each dataset will be saved to `sae_results_path` as a JSON file per dataset.
+The sparse probing results for each dataset will be saved to `results_path` as a JSON file per dataset.
 
 ### Baseline Probes
 
-The baseline probes can be run using the functions `run_all_baseline_normal`, `run_all_baseline_scarcity`, `run_all_baseline_corrupt`, and `run_all_baseline_class_imbalance`. These functions will run the baseline probes for all datasets and methods, and save the results to the `results_path` directory. Using the `run_all_baseline_normal` function is demonstrated below:
+You can now run baseline probes using a unified API that matches the SAE evaluation interface:
 
 ```python
-from sae_probes import run_all_baseline_normal
+from sae_probes import run_baseline_evals
 
-run_all_baseline_normal(
+# Run baseline probes with consistent API
+run_baseline_evals(
   model_name="gemma-2-2b",
   hook_name="blocks.12.hook_resid_post",
+  setting="normal",  # or "scarcity", "imbalance"
+  method="logreg",   # or "pca", "knn", "xgboost", "mlp"
   results_path="/results/output/path",
   # model_cache_path is optional; if omitted, a temp dir is used and cleared after
   model_cache_path="/path/to/saved/activations",
 )
 ```
 
-The baseline probes will be saved to `results_path` as a CSV file per dataset.
+#### Output Format
+
+Both SAE and baseline probes now save results as **JSON files** with consistent structure:
+
+- **SAE results**: `sae_probes_{model_name}/{setting}_setting/{dataset}_{hook_name}_{reg_type}.json`
+- **Baseline results**: `baseline_results_{model_name}/{setting}_setting/{dataset}_{hook_name}_{method}.json`
+
+Each JSON file contains a list with metrics and metadata for easy comparison between SAE and baseline approaches.
