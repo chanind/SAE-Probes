@@ -14,7 +14,7 @@ from tests.helpers import TEST_DATASET_NAME, generate_model_activations
 def test_run_sae_eval_normal_setting(
     gpt2_l4_sae: SAE, tmp_path: Path, gpt2_model: HookedTransformer, reg_type: RegType
 ) -> None:
-    sae_cache_path = tmp_path / "sae_cache"
+    sae_results_path = tmp_path / "sae_cache"
     model_cache_path = tmp_path / "model_cache"
     layer: int = 4
     model_name: str = "gpt2"
@@ -30,7 +30,7 @@ def test_run_sae_eval_normal_setting(
         setting=setting,
         model_name=model_name,
         device="cpu",
-        sae_cache_path=sae_cache_path,
+        results_path=sae_results_path,
         model_cache_path=model_cache_path,
         batch_size=batch_size,
         ks=[1, 2, 4, 8],
@@ -43,7 +43,7 @@ def test_run_sae_eval_normal_setting(
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
-        sae_cache_path=sae_cache_path,
+        sae_results_path=sae_results_path,
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"
 
@@ -76,7 +76,7 @@ def test_run_sae_eval_normal_setting(
 def test_run_sae_eval_scarcity_setting(
     gpt2_l4_sae: SAE, tmp_path: Path, gpt2_model: HookedTransformer, reg_type: RegType
 ) -> None:
-    sae_cache_path = tmp_path / "sae_cache"
+    sae_results_path = tmp_path / "sae_cache"
     model_cache_path = tmp_path / "model_cache"
     layer: int = 4
     model_name: str = "gpt2"
@@ -93,7 +93,7 @@ def test_run_sae_eval_scarcity_setting(
         setting=setting,
         model_name=model_name,
         device="cpu",
-        sae_cache_path=sae_cache_path,
+        results_path=sae_results_path,
         model_cache_path=model_cache_path,
         batch_size=batch_size,
         ks=[1, 2],  # Smaller k list for faster test
@@ -107,7 +107,7 @@ def test_run_sae_eval_scarcity_setting(
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
-        sae_cache_path=sae_cache_path,
+        sae_results_path=sae_results_path,
         num_train=num_train,
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"
@@ -143,7 +143,7 @@ def test_run_sae_eval_scarcity_setting(
 def test_run_sae_eval_imbalance_setting(
     gpt2_l4_sae: SAE, tmp_path: Path, gpt2_model: HookedTransformer, reg_type: RegType
 ) -> None:
-    sae_cache_path = tmp_path / "sae_cache"
+    sae_results_path = tmp_path / "sae_cache"
     model_cache_path = tmp_path / "model_cache"
     layer: int = 4
     model_name: str = "gpt2"
@@ -160,7 +160,7 @@ def test_run_sae_eval_imbalance_setting(
         setting=setting,
         model_name=model_name,
         device="cpu",
-        sae_cache_path=sae_cache_path,
+        results_path=sae_results_path,
         model_cache_path=model_cache_path,
         batch_size=batch_size,
         ks=[1, 2],  # Smaller k list for faster test
@@ -174,7 +174,7 @@ def test_run_sae_eval_imbalance_setting(
         reg_type=reg_type,
         model_name=model_name,
         setting=setting,
-        sae_cache_path=sae_cache_path,
+        sae_results_path=sae_results_path,
         frac=frac,
     )
     assert expected_save_path.exists(), f"Expected file not found: {expected_save_path}"

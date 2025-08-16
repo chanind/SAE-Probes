@@ -8,7 +8,11 @@ from sae_lens import SAE
 from sklearn.exceptions import ConvergenceWarning
 from tqdm import tqdm
 
-from sae_probes.constants import DEFAULT_SAE_CACHE_PATH, RegType, Setting
+from sae_probes.constants import (
+    DEFAULT_RESULTS_PATH,
+    RegType,
+    Setting,
+)
 from sae_probes.generate_model_activations import ensure_dataset_activations
 from sae_probes.generate_sae_activations import generate_sae_activations
 from sae_probes.utils_data import (
@@ -42,12 +46,12 @@ def get_save_metrics_path(
     hook_name: str,
     reg_type: RegType,
     model_name: str,
+    sae_results_path: str | Path,
     binarize: bool = False,
     setting: Setting = "normal",
     num_train: int | None = None,
     corrupt_frac: float | None = None,
     frac: float | None = None,
-    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
 ):
     description_string = f"{dataset}_{hook_name}"
 
@@ -81,7 +85,7 @@ def get_save_metrics_path(
     save_setting = setting
 
     save_path = (
-        Path(sae_cache_path)
+        Path(sae_results_path)
         / f"sae_probes_{model_name}/{save_setting}_setting/{description_string}{extra_save_string}{reg_type_str}.json"
     )
     return save_path
@@ -124,7 +128,7 @@ def run_sae_eval(
     device: str = "cuda",
     batch_size: int = 128,
     ks: list[int] | None = None,
-    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    results_path: str | Path = DEFAULT_RESULTS_PATH,
 ):
     activations = generate_sae_activations(
         sae=sae,
@@ -205,7 +209,7 @@ def run_sae_eval(
         num_train=num_train,
         corrupt_frac=corrupt_frac,
         frac=frac,
-        sae_cache_path=sae_cache_path,
+        sae_results_path=results_path,
     )
 
     print(f"Saving results to {save_path}")
@@ -224,7 +228,7 @@ def run_sae_evals(
     setting: Setting,
     ks: list[int] | None = None,
     binarize: bool = False,
-    sae_cache_path: str | Path = DEFAULT_SAE_CACHE_PATH,
+    results_path: str | Path = DEFAULT_RESULTS_PATH,
     model_cache_path: str | Path | None = None,
 ):
     with resolve_model_cache_path(model_cache_path) as resolved_cache_path:
@@ -245,7 +249,7 @@ def run_sae_evals(
                     binarize=binarize,
                     model_name=model_name,
                     setting=setting,
-                    sae_cache_path=sae_cache_path,
+                    sae_results_path=results_path,
                 )
                 if save_path.exists():
                     print(
@@ -265,7 +269,7 @@ def run_sae_evals(
                         model_cache_path=resolved_cache_path,
                         binarize=binarize,
                         ks=ks,
-                        sae_cache_path=sae_cache_path,
+                        results_path=results_path,
                     )
                     assert success
             elif setting == "scarcity":
@@ -280,7 +284,7 @@ def run_sae_evals(
                         model_name=model_name,
                         setting=setting,
                         num_train=num_train,
-                        sae_cache_path=sae_cache_path,
+                        sae_results_path=results_path,
                     )
                     if save_path.exists():
                         print(
@@ -300,7 +304,7 @@ def run_sae_evals(
                             model_cache_path=resolved_cache_path,
                             num_train=num_train,
                             ks=ks,
-                            sae_cache_path=sae_cache_path,
+                            results_path=results_path,
                         )
                         assert success
             elif setting == "imbalance":
@@ -313,7 +317,7 @@ def run_sae_evals(
                         model_name=model_name,
                         setting=setting,
                         frac=frac,
-                        sae_cache_path=sae_cache_path,
+                        sae_results_path=results_path,
                     )
                     if save_path.exists():
                         print(
@@ -333,7 +337,7 @@ def run_sae_evals(
                             model_cache_path=resolved_cache_path,
                             frac=frac,
                             ks=ks,
-                            sae_cache_path=sae_cache_path,
+                            results_path=results_path,
                         )
                         assert success
             else:

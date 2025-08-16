@@ -1,11 +1,11 @@
 # Are Sparse Autoencoders Useful? A Case Study in Sparse Probing
 
-This repository conains the code for the paper [_Are Sparse Autoencoders Useful? A Case Study in Sparse Probing_](https://arxiv.org/pdf/2502.16681), but has been reformatted into a Python package that will work with any residual stream SAE that can be loaded in [SAELens](https://github.com/jbloomAus/SAELens). This makes it easy to use the sparse probing tasks from the paper as a standalone SAE benchmark.
+This repository conains the code for the paper [_Are Sparse Autoencoders Useful? A Case Study in Sparse Probing_](https://arxiv.org/pdf/2502.16681), but has been reformatted into a Python package that will work with any SAE that can be loaded in [SAELens](https://github.com/jbloomAus/SAELens). This makes it easy to use the sparse probing tasks from the paper as a standalone SAE benchmark.
 
 # Installation
 
 ```
-pip install git+https://github.com/chanind/SAE-Probes.git@package2
+pip install git+https://github.com/chanind/SAE-Probes.git@polished-package
 ```
 
 ## Running evaluations
@@ -45,7 +45,7 @@ from sae_lens import SAE
 # run the benchmark on a Gemma Scope SAE
 release = "gemma-scope-2b-pt-res-canonical"
 sae_id = "layer_12/width_16k/canonical"
-sae = SAE.from_pretrained(release, sae_id)[0]
+sae = SAE.from_pretrained(release, sae_id)
 
 run_sae_evals(
   sae=sae,
@@ -53,14 +53,14 @@ run_sae_evals(
   hook_name="blocks.12.hook_resid_post",
   reg_type="l1",
   setting="normal",
-  sae_cache_path="/results/output/path",
-  # model_cache_path is optional; if omitted, a temp dir is used and cleaned
+  results_path="/results/output/path",
+  # model_cache_path is optional; if omitted, a temp dir is used and cleared after
   model_cache_path="/path/to/saved/activations",
   ks=[1, 16],
 )
 ```
 
-The sparse probing results for each dataset will be saved to `sae_cache_path` as a JSON file per dataset.
+The sparse probing results for each dataset will be saved to `sae_results_path` as a JSON file per dataset.
 
 ### Baseline Probes
 
@@ -73,7 +73,7 @@ run_all_baseline_normal(
   model_name="gemma-2-2b",
   hook_name="blocks.12.hook_resid_post",
   results_path="/results/output/path",
-  # model_cache_path is optional; if omitted, a temp dir is used and cleaned
+  # model_cache_path is optional; if omitted, a temp dir is used and cleared after
   model_cache_path="/path/to/saved/activations",
 )
 ```
